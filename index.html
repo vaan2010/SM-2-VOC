@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>DAY1 單字學習卡</title>
+    <title>單字學習卡</title>
     <!-- 引入 Tailwind CSS 進行快速切版 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Phosphor Icons 作為圖示 -->
@@ -76,15 +76,23 @@
 
     <div class="app-root relative w-full max-w-md mx-auto min-h-0">
     <!-- 選單：獨立最頂一列，不與卡片內進度條同一行 -->
-    <div id="menuToolbar" class="relative z-[60] shrink-0 w-full flex justify-start items-center py-0.5 min-h-[2.5rem]">
-        <button type="button" id="menuOpenBtn" class="p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="開啟選單" aria-expanded="false" aria-controls="appMenuPanel">
-            <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
-        </button>
+    <div id="menuToolbar" class="relative z-[60] shrink-0 w-full min-h-[2.75rem] py-1">
+        <div class="grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-2 w-full">
+            <button type="button" id="menuOpenBtn" class="justify-self-start p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="開啟選單" aria-expanded="false" aria-controls="appMenuPanel">
+                <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
+            </button>
+            <span id="deckTitleText" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1 invisible" title=""></span>
+            <span class="w-10 sm:w-11 shrink-0 justify-self-end" aria-hidden="true"></span>
+        </div>
         <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" aria-hidden="true">
-        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] min-w-[12rem] rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
+        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
             <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer border-b border-slate-100">
                 匯入 JSON 詞表…
             </label>
+            <div id="deckHistorySection" class="hidden border-b border-slate-100">
+                <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">最近匯入（點選復原）</div>
+                <div id="deckHistoryList" class="max-h-40 overflow-y-auto no-scrollbar"></div>
+            </div>
             <button type="button" id="menuResetBtn" role="menuitem" class="w-full px-4 py-3 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 active:bg-rose-100">
                 重置所有進度
             </button>
@@ -94,8 +102,29 @@
 
     <!-- 卡片：依螢幕剩餘高度自適應 -->
     <div class="card-stage perspective">
-        <div id="cardInner" class="relative w-full h-full min-h-0 transition-transform duration-500 preserve-3d shadow-xl shadow-slate-200/50 rounded-2xl">
-            
+        <div id="cardInner" class="relative w-full h-full min-h-0 shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
+
+            <div id="deckEmptyPrompt" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center">
+                <i class="ph ph-folder-open text-5xl sm:text-6xl text-slate-300 mb-4 shrink-0" aria-hidden="true"></i>
+                <h2 class="text-lg sm:text-xl font-bold text-slate-700 shrink-0">尚無單字詞表</h2>
+                <p class="text-sm text-slate-500 mt-2 max-w-[20rem] leading-relaxed shrink-0">請點左上角選單中的「匯入 JSON 詞表」載入檔案後即可開始練習。</p>
+            </div>
+
+            <div id="deckCompleteScreen" class="hidden absolute inset-0 z-40 bg-white rounded-2xl flex flex-col min-h-0 overflow-hidden border border-slate-100">
+                <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-5 pt-3 pb-2 border-b border-slate-100">
+                    <div class="flex-1 min-w-0 bg-slate-200 rounded-full h-1.5 sm:h-2">
+                        <div class="bg-slate-800 h-full rounded-full transition-all duration-500" style="width:100%"></div>
+                    </div>
+                    <span id="completeProgressText" class="shrink-0 text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums tracking-widest">0/0</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 min-h-0">
+                    <i class="ph-fill ph-check-circle text-5xl sm:text-6xl text-slate-800 mb-3 shrink-0" aria-hidden="true"></i>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-2 text-center shrink-0">學習完成</h2>
+                    <p class="text-slate-400 text-center text-xs sm:text-sm px-2 shrink-0">所有的單字卡皆已掌握</p>
+                </div>
+            </div>
+
+            <div id="flipCardRoot" class="hidden absolute inset-0 z-10 transition-transform duration-500 preserve-3d">
             <!-- 卡片正面：頂部進度條 → 單字與朗讀置中 -->
             <div id="frontFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl flex flex-col min-h-0 h-full overflow-hidden p-3 sm:p-5 border border-slate-100 cursor-pointer transition-all duration-300" onclick="toggleFlip()">
                 <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-0.5 pt-0 pb-2 sm:pb-3" onclick="event.stopPropagation()">
@@ -114,49 +143,50 @@
 
             <!-- 卡片背面：僅內文區可捲動，按鈕永遠貼底可點 -->
             <div id="backFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl rotate-y-180 border border-slate-100 flex flex-col min-h-0 overflow-hidden pointer-events-none transition-all duration-300 z-20">
-                <div class="flex-1 min-h-0 flex flex-col overflow-hidden p-3 sm:p-4">
-                    <div class="shrink-0 border-b border-slate-100 pb-2 mb-2 relative cursor-pointer" onclick="toggleFlip()">
-                        <h2 id="backWord" class="text-xl sm:text-2xl font-bold text-indigo-900 mb-0.5 pr-9 leading-tight break-words">Word</h2>
-                        <p id="backPosGloss" class="text-sm sm:text-base text-slate-600 font-medium leading-snug">pos. / gloss</p>
-                        <button type="button" onclick="playAudio(currentWord.keyword, event)" class="absolute top-0 right-0 text-slate-400 hover:text-indigo-500 transition-colors p-1 z-10" title="朗讀單字">
-                            <i class="ph-fill ph-speaker-high text-xl sm:text-2xl"></i>
+                <div class="flex-1 min-h-0 flex flex-col overflow-hidden p-4 sm:p-5">
+                    <div class="shrink-0 border-b border-slate-100 pb-3 mb-3 relative cursor-pointer" onclick="toggleFlip()">
+                        <h2 id="backWord" class="text-2xl sm:text-3xl font-bold text-indigo-900 mb-1 pr-12 sm:pr-14 leading-tight break-words">Word</h2>
+                        <p id="backPosGloss" class="text-base sm:text-lg text-slate-600 font-medium leading-snug">pos. / gloss</p>
+                        <button type="button" onclick="playAudio(currentWord.keyword, event)" class="absolute top-0 right-0 text-slate-400 hover:text-indigo-500 transition-colors p-2 z-10" title="朗讀單字">
+                            <i class="ph-fill ph-speaker-high text-2xl sm:text-3xl"></i>
                         </button>
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar space-y-2 sm:space-y-3 cursor-pointer" onclick="toggleFlip()">
+                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar space-y-3 sm:space-y-4 cursor-pointer" onclick="toggleFlip()">
                         <div id="synonymsContainer" class="hidden">
-                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-0.5 uppercase tracking-wider">同義詞</h3>
-                            <p id="synonymsText" class="text-slate-700 text-xs sm:text-sm leading-snug"></p>
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-wider">同義詞</h3>
+                            <p id="synonymsText" class="text-slate-700 text-sm sm:text-base leading-relaxed"></p>
                         </div>
 
                         <div id="phrasesContainer" class="hidden">
-                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-0.5 uppercase tracking-wider">常用片語</h3>
-                            <ul id="phrasesList" class="list-disc pl-4 text-slate-700 space-y-0.5 text-[11px] sm:text-sm leading-snug"></ul>
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-wider">常用片語</h3>
+                            <ul id="phrasesList" class="list-disc pl-5 sm:pl-6 text-slate-700 space-y-1 text-sm sm:text-base leading-relaxed"></ul>
                         </div>
 
                         <div id="examplesContainer" class="hidden">
-                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">例句</h3>
-                            <div id="examplesList" class="space-y-2"></div>
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">例句</h3>
+                            <div id="examplesList" class="space-y-3 sm:space-y-4"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="shrink-0 border-t border-slate-100 bg-white p-2 sm:p-3 pt-2 grid grid-cols-4 gap-1.5 sm:gap-2">
-                    <button type="button" onclick="handleRating('again', event)" class="bg-rose-50 active:bg-rose-100 text-rose-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                <div class="shrink-0 border-t border-slate-100 bg-white p-3 sm:p-4 pt-3 grid grid-cols-4 gap-2 sm:gap-3">
+                    <button type="button" onclick="handleRating('again', event)" class="bg-rose-50 active:bg-rose-100 text-rose-600 font-bold min-h-[3rem] sm:min-h-[3.5rem] py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-sm sm:text-base transition-colors flex items-center justify-center tracking-wide">
                         Again
                     </button>
-                    <button type="button" onclick="handleRating('hard', event)" class="bg-orange-50 active:bg-orange-100 text-orange-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                    <button type="button" onclick="handleRating('hard', event)" class="bg-orange-50 active:bg-orange-100 text-orange-600 font-bold min-h-[3rem] sm:min-h-[3.5rem] py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-sm sm:text-base transition-colors flex items-center justify-center tracking-wide">
                         Hard
                     </button>
-                    <button type="button" onclick="handleRating('good', event)" class="bg-teal-50 active:bg-teal-100 text-teal-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                    <button type="button" onclick="handleRating('good', event)" class="bg-teal-50 active:bg-teal-100 text-teal-600 font-bold min-h-[3rem] sm:min-h-[3.5rem] py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-sm sm:text-base transition-colors flex items-center justify-center tracking-wide">
                         Good
                     </button>
-                    <button type="button" onclick="handleRating('easy', event)" class="bg-blue-50 active:bg-blue-100 text-blue-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                    <button type="button" onclick="handleRating('easy', event)" class="bg-blue-50 active:bg-blue-100 text-blue-600 font-bold min-h-[3rem] sm:min-h-[3.5rem] py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-sm sm:text-base transition-colors flex items-center justify-center tracking-wide">
                         Easy
                     </button>
                 </div>
             </div>
 
+            </div>
         </div>
     </div>
 
@@ -183,81 +213,11 @@
     </div>
 
     <script>
-        // 將 DAY1.json 的資料扁平化整理到陣列中
-        const rawJsonData = {
-          "extract": {
-            "results": [
-              {
-                "entries": [
-                  { "keyword": "résumé", "pos": "n.", "synonyms": [], "zh_gloss": "履歷表", "examples": [{ "en": "Fax your résumé and cover letter to the above number.", "zh": "請把你的履歷表和求職信傳真到上面的號碼。" }], "phrases": [] },
-                  { "keyword": "opening", "pos": "n.", "synonyms": ["vacancy"], "zh_gloss": "空缺", "examples": [{ "en": "There are several job openings at the restaurant right now.", "zh": "那間餐廳目前有幾個職缺。" }, { "en": "JX Finances officially announced the opening of its first international branch.", "zh": "JX 金融正式宣布了第一間海外分公司的開幕。" }], "phrases": [{ "en": "an opening", "zh": "空缺 (可數名詞)" }] },
-                  { "keyword": "applicant", "pos": "n.", "synonyms": [], "zh_gloss": "申請者", "examples": [{ "en": "Applicants are required to submit a résumé.", "zh": "應徵者必須提交一份履歷表。" }], "phrases": [{ "en": "complete/submit/receive + an application", "zh": "application 主要會和 complete, submit, receive 等與「製作、提出」有關的動詞一起使用。" }, { "en": "applicant", "zh": "申請者" }, { "en": "application", "zh": "申請；申請書，適用" }] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "requirement", "pos": "n.", "synonyms": [], "zh_gloss": "必要條件", "examples": [{ "en": "A driver's license is a requirement of this job.", "zh": "駕照是這份工作的必要條件。" }], "phrases": [{ "en": "a requirement + for/of", "zh": "必要的條件" }] },
-                  { "keyword": "meet", "pos": "v.", "synonyms": ["satisfy", "fulfill"], "zh_gloss": "符合", "examples": [{ "en": "Applicants must meet all the requirements for the job.", "zh": "應徵者必須符合這份工作的所有必要條件。" }], "phrases": [{ "en": "meet one's needs", "zh": "滿足~的需要" }, { "en": "meet requirements", "zh": "符合必要條件" }, { "en": "meet customer demand", "zh": "滿足顧客要求" }, { "en": "meet expectations", "zh": "符合期待" }] },
-                  { "keyword": "qualified", "pos": "adj.", "synonyms": [], "zh_gloss": "有資格的", "examples": [{ "en": "People with Master's degrees are qualified for the research position.", "zh": "有碩士學位的人有擔任研究工作職位的資格。" }], "phrases": [{ "en": "be qualified for", "zh": "有~的資格" }, { "en": "qualifications for", "zh": "~的資格" }] },
-                  { "keyword": "candidate", "pos": "n.", "synonyms": ["applicant"], "zh_gloss": "候選者", "examples": [{ "en": "Five candidates will be selected for final interviews.", "zh": "將有五位應徵者獲選參加最終面試。" }], "phrases": [] },
-                  { "keyword": "confidence", "pos": "n.", "synonyms": [], "zh_gloss": "信心", "examples": [{ "en": "We have confidence that she can handle the position.", "zh": "我們有信心她能勝任這項職位。" }, { "en": "The recommendations showed confidence in his abilities.", "zh": "這些推薦信表現出對他能力的信心。" }], "phrases": [{ "en": "show/express confidence in", "zh": "對~的信心" }, { "en": "in confidence", "zh": "祕密地" }] },
-                  { "keyword": "highly", "pos": "adv.", "synonyms": [], "zh_gloss": "非常", "examples": [{ "en": "Mr. Monroe's experience makes him highly qualified for the job.", "zh": "Monroe 先生的經驗使他非常適任這份工作。" }], "phrases": [{ "en": "highly + competent/recommended/qualified/competitive/profitable", "zh": "非常能力的/推薦的/有資格的/競爭的/獲利的" }] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "professional", "pos": "adj.", "synonyms": [], "zh_gloss": "專業的", "examples": [{ "en": "Jeff is known as a professional photographer.", "zh": "Jeff 以職業攝影師的身分為人所知。" }, { "en": "Merseyside Hospital is looking for a certified health professional.", "zh": "Merseyside 醫院正在尋找有證照的醫療專業人員。" }], "phrases": [] },
-                  { "keyword": "interview", "pos": "n.", "synonyms": [], "zh_gloss": "面試", "examples": [{ "en": "The interviews are being held in meeting room three.", "zh": "面試正在第三會議室舉行。" }, { "en": "The manager interviewed almost 100 applicants.", "zh": "那位經理面試了將近 100 位應徵者。" }], "phrases": [] },
-                  { "keyword": "hire", "pos": "v.", "synonyms": [], "zh_gloss": "僱用", "examples": [{ "en": "The company expects to hire several new employees next month.", "zh": "公司預計下個月僱用幾名新員工。" }], "phrases": [] },
-                  { "keyword": "training", "pos": "n.", "synonyms": [], "zh_gloss": "訓練", "examples": [{ "en": "This company offers on-the-job training for new staff.", "zh": "這間公司為新員工提供實地訓練。" }], "phrases": [] },
-                  { "keyword": "reference", "pos": "n.", "synonyms": [], "zh_gloss": "推薦信", "examples": [{ "en": "Philip asked his previous employer to write a reference letter for him.", "zh": "Philip 請他以前的僱主為他寫一封推薦信。" }, { "en": "The database contains reference material on all aspects of labor law.", "zh": "這個資料庫包含關於勞動法規各方面的參考資料。" }], "phrases": [] },
-                  { "keyword": "position", "pos": "n.", "synonyms": [], "zh_gloss": "職位", "examples": [{ "en": "The advertised position provides health care and other benefits.", "zh": "廣告上的職位提供醫療保健和其他福利。" }, { "en": "The secretary positioned the chairs around the table before the meeting began.", "zh": "祕書在會議開始前把椅子擺放在了桌子周圍。" }], "phrases": [{ "en": "accept a position", "zh": "接受職位" }, { "en": "apply for a position", "zh": "應徵職位" }] },
-                  { "keyword": "achievement", "pos": "n.", "synonyms": [], "zh_gloss": "成就", "examples": [{ "en": "List all of your achievements from previous jobs on your résumé.", "zh": "請在你的履歷表中列出在之前工作中的所有成就。" }], "phrases": [{ "en": "achievement", "zh": "成就；達成" }] },
-                  { "keyword": "impressed", "pos": "adj.", "synonyms": [], "zh_gloss": "印象深刻的", "examples": [{ "en": "The CEO was impressed by his assistant's organizing skills.", "zh": "執行長對他助理的組織能力感到印象深刻。" }], "phrases": [{ "en": "impressed", "zh": "感到印象深刻的" }, { "en": "impressive", "zh": "令人印象深刻的" }] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "excellent", "pos": "adj.", "synonyms": [], "zh_gloss": "優秀的", "examples": [{ "en": "Because of her excellent managerial skills, Erin was hired for the job.", "zh": "Erin 因為她優秀的管理能力而被僱來做那份工作。" }], "phrases": [] },
-                  { "keyword": "eligible", "pos": "adj.", "synonyms": ["allowed"], "zh_gloss": "有資格的", "examples": [{ "en": "The part-time workers are also eligible for paid holidays.", "zh": "兼職員工也有資格獲得帶薪休假。" }], "phrases": [{ "en": "be eligible for membership/compensation/position", "zh": "有資格成為會員/得到補償/得到職位" }, { "en": "be eligible to do", "zh": "有資格做~" }, { "en": "eligible", "zh": "有資格 (做~)" }] },
-                  { "keyword": "identify", "pos": "v.", "synonyms": [], "zh_gloss": "辨認", "examples": [{ "en": "Staff members wear uniforms so that they are easy for customers to identify.", "zh": "員工穿制服，以讓顧客能輕易認出他們。" }], "phrases": [] },
-                  { "keyword": "associate", "pos": "v.", "synonyms": [], "zh_gloss": "使有關聯", "examples": [{ "en": "Two of the applicants were associated with a competitor.", "zh": "其中兩名應徵者和一個競爭對手有關聯。" }], "phrases": [{ "en": "be associated with", "zh": "和~有關聯" }, { "en": "in association with", "zh": "和~聯合" }] },
-                  { "keyword": "condition", "pos": "n.", "synonyms": [], "zh_gloss": "條件", "examples": [{ "en": "The conditions of employment are listed in the job opening notice.", "zh": "僱用的條件列在職缺公告裡了。" }], "phrases": [] },
-                  { "keyword": "employment", "pos": "n.", "synonyms": [], "zh_gloss": "僱用", "examples": [{ "en": "The company announced employment opportunities in personnel department.", "zh": "公司宣布了人事部門的僱用 (工作) 機會。" }], "phrases": [] },
-                  { "keyword": "lack", "pos": "v.", "synonyms": [], "zh_gloss": "缺乏", "examples": [{ "en": "Carl lacked the ability to get along well with his coworkers.", "zh": "Carl 缺乏與同事融洽相處的能力。" }, { "en": "Due to a lack of funds, this project has been temporarily halted.", "zh": "由於資金的缺乏，這項計畫暫時被中止了。" }], "phrases": [] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "managerial", "pos": "adj.", "synonyms": [], "zh_gloss": "管理的", "examples": [{ "en": "Mike is seeking a managerial position in the accounting field.", "zh": "Mike 正在尋找會計領域的管理職。" }], "phrases": [{ "en": "managerial staff/experience", "zh": "管理人員、經營團隊/管理經驗" }] },
-                  { "keyword": "diligent", "pos": "adj.", "synonyms": [], "zh_gloss": "勤奮的", "examples": [{ "en": "Carmen is one of the most diligent workers in the company.", "zh": "Carmen 是公司裡最勤奮的員工之一。" }], "phrases": [] },
-                  { "keyword": "familiar", "pos": "adj.", "synonyms": [], "zh_gloss": "熟悉的", "examples": [{ "en": "Staff must review the handbook to become familiar with it.", "zh": "員工必須複習手冊以熟悉內容。" }], "phrases": [{ "en": "be familiar with", "zh": "對~熟悉" }] },
-                  { "keyword": "proficiency", "pos": "n.", "synonyms": [], "zh_gloss": "精通", "examples": [{ "en": "Overseas workers need proof of proficiency in a second language.", "zh": "海外員工需要有精通第二語言的證明。" }], "phrases": [] },
-                  { "keyword": "prospective", "pos": "adj.", "synonyms": [], "zh_gloss": "預期的", "examples": [{ "en": "Prospective employees were asked to come in for a second interview.", "zh": "有可能是成員的人都被要求前來參加二次面試。" }], "phrases": [] },
-                  { "keyword": "appeal", "pos": "v.", "synonyms": ["attract"], "zh_gloss": "吸引", "examples": [{ "en": "The 10 percent pay increase appealed to the staff.", "zh": "百分之 10 的加薪對員工很有吸引力。" }], "phrases": [{ "en": "appeal to + 名詞", "zh": "對~有吸引力" }] },
-                  { "keyword": "specialise", "pos": "v.", "synonyms": [], "zh_gloss": "專攻", "examples": [{ "en": "Most of the programmers specialized in software design in college.", "zh": "這些程式設計師大部分都在大學時期專攻軟體設計。" }], "phrases": [] },
-                  { "keyword": "apprehensive", "pos": "adj.", "synonyms": ["concerned"], "zh_gloss": "憂慮的", "examples": [{ "en": "Many people feel apprehensive before an important job interview.", "zh": "許多人在重要的工作面試前會感到憂慮。" }], "phrases": [] },
-                  { "keyword": "consultant", "pos": "n.", "synonyms": [], "zh_gloss": "顧問", "examples": [{ "en": "Emma currently works in London as an interior design consultant.", "zh": "Emma 目前在倫敦擔任室內設計顧問。" }], "phrases": [{ "en": "consult + 專家", "zh": "諮詢~專家" }, { "en": "consult with + 身分對等的對象", "zh": "和~商議、商談" }, { "en": "consult + 書籍/資料", "zh": "查閱~" }, { "en": "consultant", "zh": "顧問" }, { "en": "consultation", "zh": "諮詢" }] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "entitle", "pos": "v.", "synonyms": [], "zh_gloss": "給予權利", "examples": [{ "en": "Executives are entitled to additional benefits.", "zh": "主管有獲得額外福利的權利。" }], "phrases": [{ "en": "be entitled to + 名詞", "zh": "有得到~的權利" }, { "en": "be entitled to do", "zh": "有資格做~" }] },
-                  { "keyword": "degree", "pos": "n.", "synonyms": [], "zh_gloss": "學位", "examples": [{ "en": "A bachelor's degree in engineering is a requirement for this position.", "zh": "工程學士學位是這個職位的必要條件。" }], "phrases": [] },
-                  { "keyword": "payroll", "pos": "n.", "synonyms": [], "zh_gloss": "薪資名冊", "examples": [{ "en": "Fifteen new employees were added to the payroll last month.", "zh": "15 名新員工上個月被加進發薪名單裡了。" }], "phrases": [{ "en": "on the payroll", "zh": "隸屬公司的員工" }] },
-                  { "keyword": "recruit", "pos": "v.", "synonyms": [], "zh_gloss": "招募", "examples": [{ "en": "The firm recruits promising graduates on a yearly basis.", "zh": "這間公司每年會招募前景看好的畢業生。" }], "phrases": [] },
-                  { "keyword": "certification", "pos": "n.", "synonyms": [], "zh_gloss": "資格證明", "examples": [{ "en": "Obtaining accounting certification takes approximately a year.", "zh": "取得會計證照大約需要一年。" }], "phrases": [{ "en": "professional certification", "zh": "專業資格證明" }, { "en": "a birth certificate", "zh": "出生證明" }] },
-                  { "keyword": "occupation", "pos": "n.", "synonyms": [], "zh_gloss": "職業", "examples": [{ "en": "Journalism is an interesting and challenging occupation.", "zh": "新聞業是一種饒富趣味且有挑戰性的職業。" }], "phrases": [{ "en": "occupation", "zh": "職業" }, { "en": "occupant", "zh": "(住宅的) 居住者；(土地的) 占有者" }] }
-                ]
-              },
-              {
-                "entries": [
-                  { "keyword": "wage", "pos": "n.", "synonyms": ["salary", "compensation"], "zh_gloss": "薪資", "examples": [{ "en": "Workers with formal education may earn higher wages than those without.", "zh": "受過正式教育的勞工，可能會比沒受過正式教育的勞工獲得更高的薪水。" }], "phrases": [{ "en": "wage : salary : compensation", "zh": "薪水" }] }
-                ]
-              }
-            ]
-          }
-        };
+        const rawJsonData = { extract: { results: [] } };
+
+        const STORAGE_KEY = 'toeic-flashcard-v2';
+        const DECK_HISTORY_KEY = 'toeic-deck-history-v1';
+        const DECK_HISTORY_MAX = 15;
 
         function flattenExtract(data) {
             if (!data || typeof data !== 'object') return [];
@@ -315,8 +275,7 @@
         let baselineWords = buildWordsFromData(rawJsonData);
         let initialTotal = baselineWords.length;
         let wordsList = baselineWords.slice();
-
-        const STORAGE_KEY = 'toeic-day1-flashcard-v1';
+        let currentDeckDisplayName = '';
 
         let isFlipped = false;
         let currentWord = null;
@@ -338,26 +297,16 @@
                 const raw = localStorage.getItem(STORAGE_KEY);
                 if (!raw) return;
                 const o = JSON.parse(raw);
-                if (o.v === 2 && Array.isArray(o.wordsList) && Array.isArray(o.baselineWords)) {
-                    const bt = Number(o.initialTotal) || o.baselineWords.length;
-                    if (bt !== o.baselineWords.length) return;
-                    baselineWords = o.baselineWords.map(normalizeEntry).filter(w => w.keyword);
-                    initialTotal = baselineWords.length;
-                    if (initialTotal === 0) return;
-                    wordsList = Array.isArray(o.wordsList) ? o.wordsList.map(normalizeEntry).filter(w => w.keyword) : baselineWords.slice();
-                    if (o.stats && typeof o.stats === 'object') {
-                        stats.again = Number(o.stats.again) || 0;
-                        stats.hard = Number(o.stats.hard) || 0;
-                        stats.good = Number(o.stats.good) || 0;
-                        stats.easy = Number(o.stats.easy) || 0;
-                    }
-                    return;
+                if (o.v !== 2 || !Array.isArray(o.baselineWords) || !Array.isArray(o.wordsList)) return;
+                baselineWords = o.baselineWords.map(normalizeEntry).filter(w => w.keyword);
+                initialTotal = Number(o.initialTotal);
+                if (initialTotal !== baselineWords.length) initialTotal = baselineWords.length;
+                if (initialTotal === 0) {
+                    wordsList = [];
+                } else {
+                    wordsList = o.wordsList.map(normalizeEntry).filter(w => w.keyword);
                 }
-                const embeddedLen = buildWordsFromData(rawJsonData).length;
-                if ((o.v !== 1 && o.v != null) || o.initialTotal !== embeddedLen || !Array.isArray(o.wordsList)) return;
-                wordsList = o.wordsList.map(normalizeEntry).filter(w => w.keyword);
-                baselineWords = buildWordsFromData(rawJsonData);
-                initialTotal = embeddedLen;
+                currentDeckDisplayName = typeof o.deckDisplayName === 'string' ? o.deckDisplayName : '';
                 if (o.stats && typeof o.stats === 'object') {
                     stats.again = Number(o.stats.again) || 0;
                     stats.hard = Number(o.stats.hard) || 0;
@@ -376,6 +325,7 @@
                     initialTotal,
                     baselineWords,
                     wordsList,
+                    deckDisplayName: currentDeckDisplayName,
                     stats: {
                         again: stats.again,
                         hard: stats.hard,
@@ -386,6 +336,91 @@
             } catch (e) {
                 console.warn('儲存進度失敗', e);
             }
+        }
+
+        function stripJsonExtension(filename) {
+            return String(filename || '').replace(/\.json$/i, '').trim();
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function updateDeckTitleUi() {
+            const el = document.getElementById('deckTitleText');
+            if (!el) return;
+            const t = currentDeckDisplayName || '';
+            el.textContent = t;
+            el.title = t;
+            el.classList.toggle('invisible', !t);
+            document.title = t ? `${t} — 單字學習卡` : '單字學習卡';
+        }
+
+        function loadDeckHistory() {
+            try {
+                const raw = localStorage.getItem(DECK_HISTORY_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                if (!Array.isArray(arr)) return [];
+                return arr.filter((x) => x && Array.isArray(x.baselineWords) && x.displayName);
+            } catch {
+                return [];
+            }
+        }
+
+        function saveDeckToHistory(displayLabel, baselineArr) {
+            const name = stripJsonExtension(displayLabel) || '詞表';
+            const entry = {
+                displayName: name,
+                baselineWords: baselineArr.map((w) => normalizeEntry(w)).filter((w) => w.keyword),
+                savedAt: Date.now(),
+            };
+            if (!entry.baselineWords.length) return;
+            let list = loadDeckHistory().filter((h) => h.displayName !== name);
+            list.unshift(entry);
+            if (list.length > DECK_HISTORY_MAX) list = list.slice(0, DECK_HISTORY_MAX);
+            localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
+            renderDeckHistoryMenu();
+        }
+
+        function renderDeckHistoryMenu() {
+            const section = document.getElementById('deckHistorySection');
+            const container = document.getElementById('deckHistoryList');
+            if (!section || !container) return;
+            container.innerHTML = '';
+            const list = loadDeckHistory();
+            if (!list.length) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            list.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.role = 'menuitem';
+                btn.className = 'w-full px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100 border-b border-slate-50 last:border-b-0';
+                btn.innerHTML = `<span class="block text-sm font-medium text-slate-800 truncate">${escapeHtml(item.displayName)}</span><span class="block text-[11px] text-slate-400 mt-0.5">復原此詞表（進度重設）</span>`;
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    restoreDeckFromHistory(item);
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        function restoreDeckFromHistory(item) {
+            const list = (item.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!list.length) {
+                alert('此紀錄沒有單字資料。');
+                return;
+            }
+            if (!confirm(`復原詞表「${item.displayName}」並重設學習進度？`)) return;
+            closeMenu();
+            applyImportedDeck(list, item.displayName);
         }
 
         function updateStatsUi() {
@@ -471,18 +506,19 @@
         }
 
         function toggleFlip() {
-            const cardInner = document.getElementById('cardInner');
+            const flipRoot = document.getElementById('flipCardRoot');
             const frontFace = document.getElementById('frontFace');
             const backFace = document.getElementById('backFace');
-            
+            if (!flipRoot || flipRoot.classList.contains('hidden') || !frontFace || !backFace) return;
+
             isFlipped = !isFlipped;
-            
+
             if (isFlipped) {
-                cardInner.classList.add('rotate-y-180');
+                flipRoot.classList.add('rotate-y-180');
                 frontFace.classList.add('pointer-events-none');
                 backFace.classList.remove('pointer-events-none');
             } else {
-                cardInner.classList.remove('rotate-y-180');
+                flipRoot.classList.remove('rotate-y-180');
                 frontFace.classList.remove('pointer-events-none');
                 backFace.classList.add('pointer-events-none');
             }
@@ -490,31 +526,43 @@
 
         function resetFlip() {
             isFlipped = false;
-            document.getElementById('cardInner').classList.remove('rotate-y-180');
-            document.getElementById('frontFace').classList.remove('pointer-events-none');
-            document.getElementById('backFace').classList.add('pointer-events-none');
+            const flipRoot = document.getElementById('flipCardRoot');
+            const frontFace = document.getElementById('frontFace');
+            const backFace = document.getElementById('backFace');
+            if (flipRoot) flipRoot.classList.remove('rotate-y-180');
+            if (frontFace) frontFace.classList.remove('pointer-events-none');
+            if (backFace) backFace.classList.add('pointer-events-none');
         }
 
         function renderCard() {
-            if (wordsList.length === 0) {
+            const emptyEl = document.getElementById('deckEmptyPrompt');
+            const completeEl = document.getElementById('deckCompleteScreen');
+            const flipRoot = document.getElementById('flipCardRoot');
+
+            if (baselineWords.length === 0) {
+                resetFlip();
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                if (completeEl) completeEl.classList.add('hidden');
+                if (flipRoot) flipRoot.classList.add('hidden');
                 persistState();
-                document.getElementById('cardInner').innerHTML = `
-                    <div class="absolute inset-0 bg-white rounded-2xl flex flex-col min-h-0 overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50">
-                        <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-5 pt-3 pb-2 border-b border-slate-100">
-                            <div class="flex-1 min-w-0 bg-slate-200 rounded-full h-1.5 sm:h-2">
-                                <div class="bg-slate-800 h-full rounded-full transition-all duration-500" style="width:100%"></div>
-                            </div>
-                            <span class="shrink-0 text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums tracking-widest">0/${initialTotal}</span>
-                        </div>
-                        <div class="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 min-h-0">
-                            <i class="ph-fill ph-check-circle text-5xl sm:text-6xl text-slate-800 mb-3 shrink-0"></i>
-                            <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-2 text-center shrink-0">學習完成</h2>
-                            <p class="text-slate-400 text-center text-xs sm:text-sm px-2 shrink-0">所有的單字卡皆已掌握</p>
-                        </div>
-                    </div>
-                `;
+                updateDeckTitleUi();
                 return;
             }
+
+            if (wordsList.length === 0) {
+                if (emptyEl) emptyEl.classList.add('hidden');
+                if (flipRoot) flipRoot.classList.add('hidden');
+                if (completeEl) completeEl.classList.remove('hidden');
+                resetFlip();
+                const lab = document.getElementById('completeProgressText');
+                if (lab) lab.innerText = `0/${initialTotal}`;
+                persistState();
+                return;
+            }
+
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (completeEl) completeEl.classList.add('hidden');
+            if (flipRoot) flipRoot.classList.remove('hidden');
 
             currentWord = wordsList[0];
             
@@ -557,18 +605,18 @@
                 exContainer.classList.remove('hidden');
                 currentWord.examples.forEach(ex => {
                     const div = document.createElement('div');
-                    div.className = "bg-slate-50 p-2 rounded-lg flex items-start gap-2";
+                    div.className = 'bg-slate-50 p-3 sm:p-4 rounded-xl flex items-start gap-3';
                     
                     const btnHtml = `
-                        <button type="button" onclick="playAudio('${ex.en.replace(/'/g, "\\'")}', event)" class="text-indigo-500 active:text-indigo-700 mt-0.5 shrink-0" title="朗讀例句">
-                            <i class="ph-fill ph-speaker-high text-lg sm:text-xl"></i>
+                        <button type="button" onclick="playAudio('${ex.en.replace(/'/g, "\\'")}', event)" class="text-indigo-500 active:text-indigo-700 mt-0.5 shrink-0 p-1" title="朗讀例句">
+                            <i class="ph-fill ph-speaker-high text-xl sm:text-2xl"></i>
                         </button>
                     `;
                     
                     const textHtml = `
                         <div class="min-w-0">
-                            <p class="text-slate-800 text-[11px] sm:text-sm font-medium mb-0.5 leading-snug">${ex.en}</p>
-                            <p class="text-slate-500 text-[10px] sm:text-xs leading-snug">${ex.zh}</p>
+                            <p class="text-slate-800 text-sm sm:text-base font-medium mb-1 leading-relaxed">${ex.en}</p>
+                            <p class="text-slate-500 text-xs sm:text-sm leading-relaxed">${ex.zh}</p>
                         </div>
                     `;
                     
@@ -639,10 +687,6 @@
             stats.again = stats.hard = stats.good = stats.easy = 0;
             isFlipped = false;
             closeMenu();
-            if (!document.getElementById('frontFace')) {
-                location.reload();
-                return;
-            }
             resetFlip();
             updateStatsUi();
             persistState();
@@ -659,14 +703,13 @@
             initialTotal = baselineWords.length;
             wordsList = baselineWords.slice();
             stats.again = stats.hard = stats.good = stats.easy = 0;
+            currentDeckDisplayName = stripJsonExtension(displayName || '');
             isFlipped = false;
             resetFlip();
             updateStatsUi();
+            saveDeckToHistory(displayName || currentDeckDisplayName || '詞表', baselineWords);
             persistState();
-            if (displayName) {
-                const base = displayName.replace(/\.json$/i, '').trim() || '單字卡';
-                document.title = base + ' — 單字學習卡';
-            }
+            updateDeckTitleUi();
             renderCard();
         }
 
@@ -682,7 +725,7 @@
                     const data = JSON.parse(String(reader.result || '{}'));
                     const rawEntries = extractEntriesFromUnknownJson(data);
                     if (!rawEntries.length) {
-                        alert('無法從此 JSON 讀取單字。請使用與 DAY1 相同的 extract.results[].entries 結構，或提供含 keyword 的陣列 / words / entries。');
+                        alert('無法從此 JSON 讀取單字。請使用 extract.results[].entries（或 extract.entries、words、entries 陣列）等結構，且項目需含 keyword 或 word。');
                         return;
                     }
                     applyImportedDeck(rawEntries, file.name);
@@ -699,6 +742,7 @@
             document.getElementById('menuBackdrop').classList.remove('hidden');
             document.getElementById('appMenuPanel').classList.remove('hidden');
             document.getElementById('menuOpenBtn').setAttribute('aria-expanded', 'true');
+            renderDeckHistoryMenu();
         }
 
         function closeMenu() {
@@ -737,6 +781,8 @@
         });
 
         loadPersistedState();
+        updateDeckTitleUi();
+        renderDeckHistoryMenu();
         updateStatsUi();
         // 初始化
         renderCard();
