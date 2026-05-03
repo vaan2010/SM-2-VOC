@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>DAY1 單字學習卡</title>
+    <!-- 引入 Tailwind CSS 進行快速切版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Phosphor Icons 作為圖示 -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* 整頁固定高度、禁止視窗捲動（手機瀏覽器網址列用 dvh + safe-area） */
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            height: 100%;
+            max-height: 100vh;
+            overflow: hidden;
+            margin: 0;
+        }
+        @supports (height: 100dvh) {
+            body {
+                max-height: 100dvh;
+            }
+        }
+        .app-root {
+            box-sizing: border-box;
+            height: 100vh;
+            max-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+            padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+            padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+        }
+        @supports (height: 100dvh) {
+            .app-root {
+                height: 100dvh;
+                max-height: 100dvh;
+            }
+        }
+        /* 翻轉卡片 */
+        .perspective {
+            perspective: 1000px;
+        }
+        .preserve-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 卡片舞台：吃掉剩餘高度，供內層 absolute 填滿 */
+        .card-stage {
+            flex: 1 1 0;
+            min-height: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation">
+
+    <div class="app-root relative w-full max-w-md mx-auto min-h-0">
+    <!-- 選單：獨立最頂一列，不與卡片內進度條同一行 -->
+    <div id="menuToolbar" class="relative z-[60] shrink-0 w-full flex justify-start items-center py-0.5 min-h-[2.5rem]">
+        <button type="button" id="menuOpenBtn" class="p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="開啟選單" aria-expanded="false" aria-controls="appMenuPanel">
+            <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
+        </button>
+        <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" aria-hidden="true">
+        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] min-w-[12rem] rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
+            <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer border-b border-slate-100">
+                匯入 JSON 詞表…
+            </label>
+            <button type="button" id="menuResetBtn" role="menuitem" class="w-full px-4 py-3 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 active:bg-rose-100">
+                重置所有進度
+            </button>
+        </nav>
+    </div>
+    <div id="menuBackdrop" class="hidden fixed inset-0 z-[55] bg-slate-900/30" aria-hidden="true"></div>
+
+    <!-- 卡片：依螢幕剩餘高度自適應 -->
+    <div class="card-stage perspective">
+        <div id="cardInner" class="relative w-full h-full min-h-0 transition-transform duration-500 preserve-3d shadow-xl shadow-slate-200/50 rounded-2xl">
+            
+            <!-- 卡片正面：頂部進度條 → 單字與朗讀置中 -->
+            <div id="frontFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl flex flex-col min-h-0 h-full overflow-hidden p-3 sm:p-5 border border-slate-100 cursor-pointer transition-all duration-300" onclick="toggleFlip()">
+                <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-0.5 pt-0 pb-2 sm:pb-3" onclick="event.stopPropagation()">
+                    <div class="flex-1 min-w-0 bg-slate-200 rounded-full h-1.5 sm:h-2">
+                        <div id="progressBar" class="bg-slate-800 h-full rounded-full transition-all duration-500" style="width: 10%"></div>
+                    </div>
+                    <span id="progressText" class="shrink-0 text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums tracking-widest">1/10</span>
+                </div>
+                <div class="flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-7 px-2 sm:px-4">
+                    <h2 id="frontWord" class="font-bold text-indigo-900 text-center break-words w-full max-w-full leading-tight tracking-tight" style="font-size: clamp(2rem, 12vmin, 4rem);">Word</h2>
+                    <button type="button" onclick="playAudio(currentWord.keyword, event)" class="text-slate-400 hover:text-indigo-500 active:text-indigo-600 transition-colors p-3 sm:p-4 rounded-full hover:bg-indigo-50 z-10 shrink-0" title="朗讀單字">
+                        <i class="ph-fill ph-speaker-high text-4xl sm:text-5xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 卡片背面：僅內文區可捲動，按鈕永遠貼底可點 -->
+            <div id="backFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl rotate-y-180 border border-slate-100 flex flex-col min-h-0 overflow-hidden pointer-events-none transition-all duration-300 z-20">
+                <div class="flex-1 min-h-0 flex flex-col overflow-hidden p-3 sm:p-4">
+                    <div class="shrink-0 border-b border-slate-100 pb-2 mb-2 relative cursor-pointer" onclick="toggleFlip()">
+                        <h2 id="backWord" class="text-xl sm:text-2xl font-bold text-indigo-900 mb-0.5 pr-9 leading-tight break-words">Word</h2>
+                        <p id="backPosGloss" class="text-sm sm:text-base text-slate-600 font-medium leading-snug">pos. / gloss</p>
+                        <button type="button" onclick="playAudio(currentWord.keyword, event)" class="absolute top-0 right-0 text-slate-400 hover:text-indigo-500 transition-colors p-1 z-10" title="朗讀單字">
+                            <i class="ph-fill ph-speaker-high text-xl sm:text-2xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar space-y-2 sm:space-y-3 cursor-pointer" onclick="toggleFlip()">
+                        <div id="synonymsContainer" class="hidden">
+                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-0.5 uppercase tracking-wider">同義詞</h3>
+                            <p id="synonymsText" class="text-slate-700 text-xs sm:text-sm leading-snug"></p>
+                        </div>
+
+                        <div id="phrasesContainer" class="hidden">
+                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-0.5 uppercase tracking-wider">常用片語</h3>
+                            <ul id="phrasesList" class="list-disc pl-4 text-slate-700 space-y-0.5 text-[11px] sm:text-sm leading-snug"></ul>
+                        </div>
+
+                        <div id="examplesContainer" class="hidden">
+                            <h3 class="text-[10px] sm:text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">例句</h3>
+                            <div id="examplesList" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shrink-0 border-t border-slate-100 bg-white p-2 sm:p-3 pt-2 grid grid-cols-4 gap-1.5 sm:gap-2">
+                    <button type="button" onclick="handleRating('again', event)" class="bg-rose-50 active:bg-rose-100 text-rose-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                        Again
+                    </button>
+                    <button type="button" onclick="handleRating('hard', event)" class="bg-orange-50 active:bg-orange-100 text-orange-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                        Hard
+                    </button>
+                    <button type="button" onclick="handleRating('good', event)" class="bg-teal-50 active:bg-teal-100 text-teal-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                        Good
+                    </button>
+                    <button type="button" onclick="handleRating('easy', event)" class="bg-blue-50 active:bg-blue-100 text-blue-600 font-bold py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-[11px] sm:text-sm transition-colors flex items-center justify-center tracking-wide">
+                        Easy
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 底部統計：固定高度列，不與卡片搶 flex -->
+    <footer class="shrink-0 w-full flex justify-around items-center pt-2 pb-1 gap-1">
+        <div class="flex flex-col items-center min-w-0">
+            <span class="text-[9px] sm:text-[10px] text-rose-500 font-bold uppercase tracking-wider">Again</span>
+            <span id="statAgain" class="text-slate-600 font-medium text-sm sm:text-base tabular-nums">0</span>
+        </div>
+        <div class="flex flex-col items-center min-w-0">
+            <span class="text-[9px] sm:text-[10px] text-orange-500 font-bold uppercase tracking-wider">Hard</span>
+            <span id="statHard" class="text-slate-600 font-medium text-sm sm:text-base tabular-nums">0</span>
+        </div>
+        <div class="flex flex-col items-center min-w-0">
+            <span class="text-[9px] sm:text-[10px] text-teal-500 font-bold uppercase tracking-wider">Good</span>
+            <span id="statGood" class="text-slate-600 font-medium text-sm sm:text-base tabular-nums">0</span>
+        </div>
+        <div class="flex flex-col items-center min-w-0">
+            <span class="text-[9px] sm:text-[10px] text-blue-500 font-bold uppercase tracking-wider">Easy</span>
+            <span id="statEasy" class="text-slate-600 font-medium text-sm sm:text-base tabular-nums">0</span>
+        </div>
+    </footer>
+
+    </div>
+
+    <script>
+        // 將 DAY1.json 的資料扁平化整理到陣列中
+        const rawJsonData = {
+          "extract": {
+            "results": [
+              {
+                "entries": [
+                  { "keyword": "résumé", "pos": "n.", "synonyms": [], "zh_gloss": "履歷表", "examples": [{ "en": "Fax your résumé and cover letter to the above number.", "zh": "請把你的履歷表和求職信傳真到上面的號碼。" }], "phrases": [] },
+                  { "keyword": "opening", "pos": "n.", "synonyms": ["vacancy"], "zh_gloss": "空缺", "examples": [{ "en": "There are several job openings at the restaurant right now.", "zh": "那間餐廳目前有幾個職缺。" }, { "en": "JX Finances officially announced the opening of its first international branch.", "zh": "JX 金融正式宣布了第一間海外分公司的開幕。" }], "phrases": [{ "en": "an opening", "zh": "空缺 (可數名詞)" }] },
+                  { "keyword": "applicant", "pos": "n.", "synonyms": [], "zh_gloss": "申請者", "examples": [{ "en": "Applicants are required to submit a résumé.", "zh": "應徵者必須提交一份履歷表。" }], "phrases": [{ "en": "complete/submit/receive + an application", "zh": "application 主要會和 complete, submit, receive 等與「製作、提出」有關的動詞一起使用。" }, { "en": "applicant", "zh": "申請者" }, { "en": "application", "zh": "申請；申請書，適用" }] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "requirement", "pos": "n.", "synonyms": [], "zh_gloss": "必要條件", "examples": [{ "en": "A driver's license is a requirement of this job.", "zh": "駕照是這份工作的必要條件。" }], "phrases": [{ "en": "a requirement + for/of", "zh": "必要的條件" }] },
+                  { "keyword": "meet", "pos": "v.", "synonyms": ["satisfy", "fulfill"], "zh_gloss": "符合", "examples": [{ "en": "Applicants must meet all the requirements for the job.", "zh": "應徵者必須符合這份工作的所有必要條件。" }], "phrases": [{ "en": "meet one's needs", "zh": "滿足~的需要" }, { "en": "meet requirements", "zh": "符合必要條件" }, { "en": "meet customer demand", "zh": "滿足顧客要求" }, { "en": "meet expectations", "zh": "符合期待" }] },
+                  { "keyword": "qualified", "pos": "adj.", "synonyms": [], "zh_gloss": "有資格的", "examples": [{ "en": "People with Master's degrees are qualified for the research position.", "zh": "有碩士學位的人有擔任研究工作職位的資格。" }], "phrases": [{ "en": "be qualified for", "zh": "有~的資格" }, { "en": "qualifications for", "zh": "~的資格" }] },
+                  { "keyword": "candidate", "pos": "n.", "synonyms": ["applicant"], "zh_gloss": "候選者", "examples": [{ "en": "Five candidates will be selected for final interviews.", "zh": "將有五位應徵者獲選參加最終面試。" }], "phrases": [] },
+                  { "keyword": "confidence", "pos": "n.", "synonyms": [], "zh_gloss": "信心", "examples": [{ "en": "We have confidence that she can handle the position.", "zh": "我們有信心她能勝任這項職位。" }, { "en": "The recommendations showed confidence in his abilities.", "zh": "這些推薦信表現出對他能力的信心。" }], "phrases": [{ "en": "show/express confidence in", "zh": "對~的信心" }, { "en": "in confidence", "zh": "祕密地" }] },
+                  { "keyword": "highly", "pos": "adv.", "synonyms": [], "zh_gloss": "非常", "examples": [{ "en": "Mr. Monroe's experience makes him highly qualified for the job.", "zh": "Monroe 先生的經驗使他非常適任這份工作。" }], "phrases": [{ "en": "highly + competent/recommended/qualified/competitive/profitable", "zh": "非常能力的/推薦的/有資格的/競爭的/獲利的" }] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "professional", "pos": "adj.", "synonyms": [], "zh_gloss": "專業的", "examples": [{ "en": "Jeff is known as a professional photographer.", "zh": "Jeff 以職業攝影師的身分為人所知。" }, { "en": "Merseyside Hospital is looking for a certified health professional.", "zh": "Merseyside 醫院正在尋找有證照的醫療專業人員。" }], "phrases": [] },
+                  { "keyword": "interview", "pos": "n.", "synonyms": [], "zh_gloss": "面試", "examples": [{ "en": "The interviews are being held in meeting room three.", "zh": "面試正在第三會議室舉行。" }, { "en": "The manager interviewed almost 100 applicants.", "zh": "那位經理面試了將近 100 位應徵者。" }], "phrases": [] },
+                  { "keyword": "hire", "pos": "v.", "synonyms": [], "zh_gloss": "僱用", "examples": [{ "en": "The company expects to hire several new employees next month.", "zh": "公司預計下個月僱用幾名新員工。" }], "phrases": [] },
+                  { "keyword": "training", "pos": "n.", "synonyms": [], "zh_gloss": "訓練", "examples": [{ "en": "This company offers on-the-job training for new staff.", "zh": "這間公司為新員工提供實地訓練。" }], "phrases": [] },
+                  { "keyword": "reference", "pos": "n.", "synonyms": [], "zh_gloss": "推薦信", "examples": [{ "en": "Philip asked his previous employer to write a reference letter for him.", "zh": "Philip 請他以前的僱主為他寫一封推薦信。" }, { "en": "The database contains reference material on all aspects of labor law.", "zh": "這個資料庫包含關於勞動法規各方面的參考資料。" }], "phrases": [] },
+                  { "keyword": "position", "pos": "n.", "synonyms": [], "zh_gloss": "職位", "examples": [{ "en": "The advertised position provides health care and other benefits.", "zh": "廣告上的職位提供醫療保健和其他福利。" }, { "en": "The secretary positioned the chairs around the table before the meeting began.", "zh": "祕書在會議開始前把椅子擺放在了桌子周圍。" }], "phrases": [{ "en": "accept a position", "zh": "接受職位" }, { "en": "apply for a position", "zh": "應徵職位" }] },
+                  { "keyword": "achievement", "pos": "n.", "synonyms": [], "zh_gloss": "成就", "examples": [{ "en": "List all of your achievements from previous jobs on your résumé.", "zh": "請在你的履歷表中列出在之前工作中的所有成就。" }], "phrases": [{ "en": "achievement", "zh": "成就；達成" }] },
+                  { "keyword": "impressed", "pos": "adj.", "synonyms": [], "zh_gloss": "印象深刻的", "examples": [{ "en": "The CEO was impressed by his assistant's organizing skills.", "zh": "執行長對他助理的組織能力感到印象深刻。" }], "phrases": [{ "en": "impressed", "zh": "感到印象深刻的" }, { "en": "impressive", "zh": "令人印象深刻的" }] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "excellent", "pos": "adj.", "synonyms": [], "zh_gloss": "優秀的", "examples": [{ "en": "Because of her excellent managerial skills, Erin was hired for the job.", "zh": "Erin 因為她優秀的管理能力而被僱來做那份工作。" }], "phrases": [] },
+                  { "keyword": "eligible", "pos": "adj.", "synonyms": ["allowed"], "zh_gloss": "有資格的", "examples": [{ "en": "The part-time workers are also eligible for paid holidays.", "zh": "兼職員工也有資格獲得帶薪休假。" }], "phrases": [{ "en": "be eligible for membership/compensation/position", "zh": "有資格成為會員/得到補償/得到職位" }, { "en": "be eligible to do", "zh": "有資格做~" }, { "en": "eligible", "zh": "有資格 (做~)" }] },
+                  { "keyword": "identify", "pos": "v.", "synonyms": [], "zh_gloss": "辨認", "examples": [{ "en": "Staff members wear uniforms so that they are easy for customers to identify.", "zh": "員工穿制服，以讓顧客能輕易認出他們。" }], "phrases": [] },
+                  { "keyword": "associate", "pos": "v.", "synonyms": [], "zh_gloss": "使有關聯", "examples": [{ "en": "Two of the applicants were associated with a competitor.", "zh": "其中兩名應徵者和一個競爭對手有關聯。" }], "phrases": [{ "en": "be associated with", "zh": "和~有關聯" }, { "en": "in association with", "zh": "和~聯合" }] },
+                  { "keyword": "condition", "pos": "n.", "synonyms": [], "zh_gloss": "條件", "examples": [{ "en": "The conditions of employment are listed in the job opening notice.", "zh": "僱用的條件列在職缺公告裡了。" }], "phrases": [] },
+                  { "keyword": "employment", "pos": "n.", "synonyms": [], "zh_gloss": "僱用", "examples": [{ "en": "The company announced employment opportunities in personnel department.", "zh": "公司宣布了人事部門的僱用 (工作) 機會。" }], "phrases": [] },
+                  { "keyword": "lack", "pos": "v.", "synonyms": [], "zh_gloss": "缺乏", "examples": [{ "en": "Carl lacked the ability to get along well with his coworkers.", "zh": "Carl 缺乏與同事融洽相處的能力。" }, { "en": "Due to a lack of funds, this project has been temporarily halted.", "zh": "由於資金的缺乏，這項計畫暫時被中止了。" }], "phrases": [] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "managerial", "pos": "adj.", "synonyms": [], "zh_gloss": "管理的", "examples": [{ "en": "Mike is seeking a managerial position in the accounting field.", "zh": "Mike 正在尋找會計領域的管理職。" }], "phrases": [{ "en": "managerial staff/experience", "zh": "管理人員、經營團隊/管理經驗" }] },
+                  { "keyword": "diligent", "pos": "adj.", "synonyms": [], "zh_gloss": "勤奮的", "examples": [{ "en": "Carmen is one of the most diligent workers in the company.", "zh": "Carmen 是公司裡最勤奮的員工之一。" }], "phrases": [] },
+                  { "keyword": "familiar", "pos": "adj.", "synonyms": [], "zh_gloss": "熟悉的", "examples": [{ "en": "Staff must review the handbook to become familiar with it.", "zh": "員工必須複習手冊以熟悉內容。" }], "phrases": [{ "en": "be familiar with", "zh": "對~熟悉" }] },
+                  { "keyword": "proficiency", "pos": "n.", "synonyms": [], "zh_gloss": "精通", "examples": [{ "en": "Overseas workers need proof of proficiency in a second language.", "zh": "海外員工需要有精通第二語言的證明。" }], "phrases": [] },
+                  { "keyword": "prospective", "pos": "adj.", "synonyms": [], "zh_gloss": "預期的", "examples": [{ "en": "Prospective employees were asked to come in for a second interview.", "zh": "有可能是成員的人都被要求前來參加二次面試。" }], "phrases": [] },
+                  { "keyword": "appeal", "pos": "v.", "synonyms": ["attract"], "zh_gloss": "吸引", "examples": [{ "en": "The 10 percent pay increase appealed to the staff.", "zh": "百分之 10 的加薪對員工很有吸引力。" }], "phrases": [{ "en": "appeal to + 名詞", "zh": "對~有吸引力" }] },
+                  { "keyword": "specialise", "pos": "v.", "synonyms": [], "zh_gloss": "專攻", "examples": [{ "en": "Most of the programmers specialized in software design in college.", "zh": "這些程式設計師大部分都在大學時期專攻軟體設計。" }], "phrases": [] },
+                  { "keyword": "apprehensive", "pos": "adj.", "synonyms": ["concerned"], "zh_gloss": "憂慮的", "examples": [{ "en": "Many people feel apprehensive before an important job interview.", "zh": "許多人在重要的工作面試前會感到憂慮。" }], "phrases": [] },
+                  { "keyword": "consultant", "pos": "n.", "synonyms": [], "zh_gloss": "顧問", "examples": [{ "en": "Emma currently works in London as an interior design consultant.", "zh": "Emma 目前在倫敦擔任室內設計顧問。" }], "phrases": [{ "en": "consult + 專家", "zh": "諮詢~專家" }, { "en": "consult with + 身分對等的對象", "zh": "和~商議、商談" }, { "en": "consult + 書籍/資料", "zh": "查閱~" }, { "en": "consultant", "zh": "顧問" }, { "en": "consultation", "zh": "諮詢" }] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "entitle", "pos": "v.", "synonyms": [], "zh_gloss": "給予權利", "examples": [{ "en": "Executives are entitled to additional benefits.", "zh": "主管有獲得額外福利的權利。" }], "phrases": [{ "en": "be entitled to + 名詞", "zh": "有得到~的權利" }, { "en": "be entitled to do", "zh": "有資格做~" }] },
+                  { "keyword": "degree", "pos": "n.", "synonyms": [], "zh_gloss": "學位", "examples": [{ "en": "A bachelor's degree in engineering is a requirement for this position.", "zh": "工程學士學位是這個職位的必要條件。" }], "phrases": [] },
+                  { "keyword": "payroll", "pos": "n.", "synonyms": [], "zh_gloss": "薪資名冊", "examples": [{ "en": "Fifteen new employees were added to the payroll last month.", "zh": "15 名新員工上個月被加進發薪名單裡了。" }], "phrases": [{ "en": "on the payroll", "zh": "隸屬公司的員工" }] },
+                  { "keyword": "recruit", "pos": "v.", "synonyms": [], "zh_gloss": "招募", "examples": [{ "en": "The firm recruits promising graduates on a yearly basis.", "zh": "這間公司每年會招募前景看好的畢業生。" }], "phrases": [] },
+                  { "keyword": "certification", "pos": "n.", "synonyms": [], "zh_gloss": "資格證明", "examples": [{ "en": "Obtaining accounting certification takes approximately a year.", "zh": "取得會計證照大約需要一年。" }], "phrases": [{ "en": "professional certification", "zh": "專業資格證明" }, { "en": "a birth certificate", "zh": "出生證明" }] },
+                  { "keyword": "occupation", "pos": "n.", "synonyms": [], "zh_gloss": "職業", "examples": [{ "en": "Journalism is an interesting and challenging occupation.", "zh": "新聞業是一種饒富趣味且有挑戰性的職業。" }], "phrases": [{ "en": "occupation", "zh": "職業" }, { "en": "occupant", "zh": "(住宅的) 居住者；(土地的) 占有者" }] }
+                ]
+              },
+              {
+                "entries": [
+                  { "keyword": "wage", "pos": "n.", "synonyms": ["salary", "compensation"], "zh_gloss": "薪資", "examples": [{ "en": "Workers with formal education may earn higher wages than those without.", "zh": "受過正式教育的勞工，可能會比沒受過正式教育的勞工獲得更高的薪水。" }], "phrases": [{ "en": "wage : salary : compensation", "zh": "薪水" }] }
+                ]
+              }
+            ]
+          }
+        };
+
+        function flattenExtract(data) {
+            if (!data || typeof data !== 'object') return [];
+            const ext = data.extract || data;
+            const results = ext.results;
+            if (!Array.isArray(results)) return [];
+            return results.flatMap(r => (Array.isArray(r?.entries) ? r.entries : []));
+        }
+
+        function extractEntriesFromUnknownJson(data) {
+            if (!data) return [];
+            const fromExtract = flattenExtract(data);
+            if (fromExtract.length) return fromExtract;
+            if (Array.isArray(data.extract?.entries)) return data.extract.entries;
+            if (Array.isArray(data)) {
+                if (data.length && typeof data[0] === 'object' && (data[0].keyword != null || data[0].word != null)) return data;
+                return [];
+            }
+            if (Array.isArray(data.words)) return data.words;
+            if (Array.isArray(data.entries)) return data.entries;
+            return [];
+        }
+
+        function normalizeExample(ex) {
+            if (typeof ex === 'string') return { en: ex.trim(), zh: '' };
+            if (!ex || typeof ex !== 'object') return { en: '', zh: '' };
+            return {
+                en: String(ex.en ?? ex.text ?? '').trim(),
+                zh: String(ex.zh ?? ex.translation ?? '').trim(),
+            };
+        }
+
+        function normalizePhrase(p) {
+            if (typeof p === 'string') return { en: p.trim(), zh: '' };
+            if (!p || typeof p !== 'object') return { en: '', zh: '' };
+            return { en: String(p.en ?? '').trim(), zh: String(p.zh ?? '').trim() };
+        }
+
+        function normalizeEntry(e) {
+            const keyword = String(e.keyword ?? e.word ?? '').trim();
+            return {
+                keyword,
+                pos: String(e.pos ?? e.partOfSpeech ?? '').trim() || '—',
+                synonyms: Array.isArray(e.synonyms) ? e.synonyms.map(s => String(s).trim()).filter(Boolean) : [],
+                zh_gloss: String(e.zh_gloss ?? e.zhGloss ?? e.gloss ?? e.zh ?? '').trim(),
+                examples: Array.isArray(e.examples) ? e.examples.map(normalizeExample).filter(x => x.en) : [],
+                phrases: Array.isArray(e.phrases) ? e.phrases.map(normalizePhrase).filter(x => x.en || x.zh) : [],
+            };
+        }
+
+        function buildWordsFromData(data) {
+            return extractEntriesFromUnknownJson(data).map(normalizeEntry).filter(w => w.keyword);
+        }
+
+        let baselineWords = buildWordsFromData(rawJsonData);
+        let initialTotal = baselineWords.length;
+        let wordsList = baselineWords.slice();
+
+        const STORAGE_KEY = 'toeic-day1-flashcard-v1';
+
+        let isFlipped = false;
+        let currentWord = null;
+        /** 換卡自動朗讀：避免快速連按導致播到上一張單字 */
+        let autoSpeakCardSeq = 0;
+
+        /** 語音清單載入後重算（Chrome 等會延遲注入較自然語音） */
+        let preferredEnglishVoiceCache = null;
+
+        const stats = {
+            again: 0,
+            hard: 0,
+            good: 0,
+            easy: 0
+        };
+
+        function loadPersistedState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const o = JSON.parse(raw);
+                if (o.v === 2 && Array.isArray(o.wordsList) && Array.isArray(o.baselineWords)) {
+                    const bt = Number(o.initialTotal) || o.baselineWords.length;
+                    if (bt !== o.baselineWords.length) return;
+                    baselineWords = o.baselineWords.map(normalizeEntry).filter(w => w.keyword);
+                    initialTotal = baselineWords.length;
+                    if (initialTotal === 0) return;
+                    wordsList = Array.isArray(o.wordsList) ? o.wordsList.map(normalizeEntry).filter(w => w.keyword) : baselineWords.slice();
+                    if (o.stats && typeof o.stats === 'object') {
+                        stats.again = Number(o.stats.again) || 0;
+                        stats.hard = Number(o.stats.hard) || 0;
+                        stats.good = Number(o.stats.good) || 0;
+                        stats.easy = Number(o.stats.easy) || 0;
+                    }
+                    return;
+                }
+                const embeddedLen = buildWordsFromData(rawJsonData).length;
+                if ((o.v !== 1 && o.v != null) || o.initialTotal !== embeddedLen || !Array.isArray(o.wordsList)) return;
+                wordsList = o.wordsList.map(normalizeEntry).filter(w => w.keyword);
+                baselineWords = buildWordsFromData(rawJsonData);
+                initialTotal = embeddedLen;
+                if (o.stats && typeof o.stats === 'object') {
+                    stats.again = Number(o.stats.again) || 0;
+                    stats.hard = Number(o.stats.hard) || 0;
+                    stats.good = Number(o.stats.good) || 0;
+                    stats.easy = Number(o.stats.easy) || 0;
+                }
+            } catch (e) {
+                console.warn('讀取進度失敗', e);
+            }
+        }
+
+        function persistState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    v: 2,
+                    initialTotal,
+                    baselineWords,
+                    wordsList,
+                    stats: {
+                        again: stats.again,
+                        hard: stats.hard,
+                        good: stats.good,
+                        easy: stats.easy
+                    }
+                }));
+            } catch (e) {
+                console.warn('儲存進度失敗', e);
+            }
+        }
+
+        function updateStatsUi() {
+            document.getElementById('statAgain').innerText = stats.again;
+            document.getElementById('statHard').innerText = stats.hard;
+            document.getElementById('statGood').innerText = stats.good;
+            document.getElementById('statEasy').innerText = stats.easy;
+        }
+
+        function scoreVoiceForEnglish(v) {
+            const lang = (v.lang || '').toLowerCase().replace('_', '-');
+            if (!/^en/i.test(lang)) return -1e6;
+            const name = (v.name || '').toLowerCase();
+            let s = 0;
+            if (lang === 'en-us' || lang.startsWith('en-us')) s += 40;
+            else if (lang.startsWith('en-gb')) s += 28;
+            else if (lang.startsWith('en')) s += 20;
+            if (/natural|neural|premium|enhanced|wavenet|polyglot|expressive|generative/.test(name)) s += 120;
+            if (/google\s+/.test(name) && /english/.test(name)) s += 70;
+            if (/microsoft\s+/.test(name) && /(natural|neural|online)/.test(name)) s += 75;
+            if (/microsoft\s+(jenny|aria|guy|davis|jane|sonia|ryan|andrew|emma|brian|michelle)\b/.test(name)) s += 55;
+            if (/samantha|allison|victoria|aaron|nicky|susan|daniel|karen|moira|fiona|tessa/.test(name)) s += 45;
+            if (/apple\s+/.test(name)) s += 35;
+            if (!v.localService && /google|microsoft/.test(name)) s += 15;
+            if (/compact|low\s*quality|basic/.test(name)) s -= 80;
+            if (/^microsoft\s+mark\b|^microsoft\s+zira\b|^microsoft\s+david\b/.test(name)) s -= 25;
+            return s;
+        }
+
+        function getPreferredEnglishVoice() {
+            if (!('speechSynthesis' in window)) return null;
+            const voices = window.speechSynthesis.getVoices();
+            if (!voices.length) return preferredEnglishVoiceCache;
+            let best = null;
+            let bestScore = -Infinity;
+            for (const v of voices) {
+                const sc = scoreVoiceForEnglish(v);
+                if (sc > bestScore) {
+                    bestScore = sc;
+                    best = v;
+                }
+            }
+            if (best && bestScore > -5e5) {
+                preferredEnglishVoiceCache = best;
+                return best;
+            }
+            preferredEnglishVoiceCache = voices.find((x) => /^en/i.test(x.lang)) || null;
+            return preferredEnglishVoiceCache;
+        }
+
+        function playAudio(text, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            if (!('speechSynthesis' in window)) {
+                console.warn('此瀏覽器不支援語音合成功能');
+                return;
+            }
+            const t = String(text || '').trim();
+            if (!t) return;
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(t);
+            const voice = getPreferredEnglishVoice();
+            if (voice) {
+                utterance.voice = voice;
+                utterance.lang = voice.lang || 'en-US';
+            } else {
+                utterance.lang = 'en-US';
+            }
+            utterance.rate = t.length > 140 ? 0.96 : 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.addEventListener('voiceschanged', () => {
+                preferredEnglishVoiceCache = null;
+            });
+            window.speechSynthesis.getVoices();
+        }
+
+        function toggleFlip() {
+            const cardInner = document.getElementById('cardInner');
+            const frontFace = document.getElementById('frontFace');
+            const backFace = document.getElementById('backFace');
+            
+            isFlipped = !isFlipped;
+            
+            if (isFlipped) {
+                cardInner.classList.add('rotate-y-180');
+                frontFace.classList.add('pointer-events-none');
+                backFace.classList.remove('pointer-events-none');
+            } else {
+                cardInner.classList.remove('rotate-y-180');
+                frontFace.classList.remove('pointer-events-none');
+                backFace.classList.add('pointer-events-none');
+            }
+        }
+
+        function resetFlip() {
+            isFlipped = false;
+            document.getElementById('cardInner').classList.remove('rotate-y-180');
+            document.getElementById('frontFace').classList.remove('pointer-events-none');
+            document.getElementById('backFace').classList.add('pointer-events-none');
+        }
+
+        function renderCard() {
+            if (wordsList.length === 0) {
+                persistState();
+                document.getElementById('cardInner').innerHTML = `
+                    <div class="absolute inset-0 bg-white rounded-2xl flex flex-col min-h-0 overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-5 pt-3 pb-2 border-b border-slate-100">
+                            <div class="flex-1 min-w-0 bg-slate-200 rounded-full h-1.5 sm:h-2">
+                                <div class="bg-slate-800 h-full rounded-full transition-all duration-500" style="width:100%"></div>
+                            </div>
+                            <span class="shrink-0 text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums tracking-widest">0/${initialTotal}</span>
+                        </div>
+                        <div class="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 min-h-0">
+                            <i class="ph-fill ph-check-circle text-5xl sm:text-6xl text-slate-800 mb-3 shrink-0"></i>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-2 text-center shrink-0">學習完成</h2>
+                            <p class="text-slate-400 text-center text-xs sm:text-sm px-2 shrink-0">所有的單字卡皆已掌握</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            currentWord = wordsList[0];
+            
+            const completedCount = initialTotal - wordsList.length;
+            document.getElementById('progressText').innerText = `${wordsList.length}/${initialTotal}`;
+            const progressPercent = (completedCount / initialTotal) * 100;
+            document.getElementById('progressBar').style.width = `${progressPercent}%`;
+
+            document.getElementById('frontWord').innerText = currentWord.keyword;
+
+            document.getElementById('backWord').innerText = currentWord.keyword;
+            document.getElementById('backPosGloss').innerText = `${currentWord.pos} ${currentWord.zh_gloss}`;
+
+            const synContainer = document.getElementById('synonymsContainer');
+            if (currentWord.synonyms && currentWord.synonyms.length > 0) {
+                synContainer.classList.remove('hidden');
+                document.getElementById('synonymsText').innerText = currentWord.synonyms.join(', ');
+            } else {
+                synContainer.classList.add('hidden');
+            }
+
+            const phrContainer = document.getElementById('phrasesContainer');
+            const phrList = document.getElementById('phrasesList');
+            phrList.innerHTML = '';
+            if (currentWord.phrases && currentWord.phrases.length > 0) {
+                phrContainer.classList.remove('hidden');
+                currentWord.phrases.forEach(phr => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="font-semibold text-indigo-700">${phr.en}</span> - ${phr.zh}`;
+                    phrList.appendChild(li);
+                });
+            } else {
+                phrContainer.classList.add('hidden');
+            }
+
+            const exContainer = document.getElementById('examplesContainer');
+            const exList = document.getElementById('examplesList');
+            exList.innerHTML = '';
+            if (currentWord.examples && currentWord.examples.length > 0) {
+                exContainer.classList.remove('hidden');
+                currentWord.examples.forEach(ex => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 p-2 rounded-lg flex items-start gap-2";
+                    
+                    const btnHtml = `
+                        <button type="button" onclick="playAudio('${ex.en.replace(/'/g, "\\'")}', event)" class="text-indigo-500 active:text-indigo-700 mt-0.5 shrink-0" title="朗讀例句">
+                            <i class="ph-fill ph-speaker-high text-lg sm:text-xl"></i>
+                        </button>
+                    `;
+                    
+                    const textHtml = `
+                        <div class="min-w-0">
+                            <p class="text-slate-800 text-[11px] sm:text-sm font-medium mb-0.5 leading-snug">${ex.en}</p>
+                            <p class="text-slate-500 text-[10px] sm:text-xs leading-snug">${ex.zh}</p>
+                        </div>
+                    `;
+                    
+                    div.innerHTML = btnHtml + textHtml;
+                    exList.appendChild(div);
+                });
+            } else {
+                exContainer.classList.add('hidden');
+            }
+
+            const kw = currentWord.keyword;
+            const seq = ++autoSpeakCardSeq;
+            window.speechSynthesis.cancel();
+            window.setTimeout(() => {
+                if (seq !== autoSpeakCardSeq) return;
+                if (!wordsList.length || wordsList[0].keyword !== kw) return;
+                playAudio(kw);
+            }, 120);
+        }
+
+        function handleRating(rating, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            if (wordsList.length === 0) return;
+
+            const card = wordsList.shift();
+            
+            switch(rating) {
+                case 'again':
+                    stats.again++;
+                    wordsList.splice(1, 0, card);
+                    break;
+                case 'hard':
+                    stats.hard++;
+                    const hardIndex = Math.min(wordsList.length, Math.floor(Math.random() * 3) + 2);
+                    wordsList.splice(hardIndex, 0, card);
+                    break;
+                case 'good':
+                    stats.good++;
+                    const goodIndex = Math.floor(wordsList.length * 0.75);
+                    wordsList.splice(goodIndex, 0, card);
+                    break;
+                case 'easy':
+                    stats.easy++;
+                    break;
+            }
+
+            document.getElementById('statAgain').innerText = stats.again;
+            document.getElementById('statHard').innerText = stats.hard;
+            document.getElementById('statGood').innerText = stats.good;
+            document.getElementById('statEasy').innerText = stats.easy;
+
+            persistState();
+
+            resetFlip();
+            setTimeout(() => {
+                renderCard();
+            }, 150);
+        }
+
+        function resetAllProgress() {
+            if (!confirm('確定要重置所有進度？此操作無法復原。')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            wordsList = baselineWords.slice();
+            stats.again = stats.hard = stats.good = stats.easy = 0;
+            isFlipped = false;
+            closeMenu();
+            if (!document.getElementById('frontFace')) {
+                location.reload();
+                return;
+            }
+            resetFlip();
+            updateStatsUi();
+            persistState();
+            renderCard();
+        }
+
+        function applyImportedDeck(entries, displayName) {
+            const list = entries.map(normalizeEntry).filter(w => w.keyword);
+            if (!list.length) {
+                alert('檔案中沒有可用的單字（需要 keyword 或 word 欄位）。');
+                return;
+            }
+            baselineWords = list;
+            initialTotal = baselineWords.length;
+            wordsList = baselineWords.slice();
+            stats.again = stats.hard = stats.good = stats.easy = 0;
+            isFlipped = false;
+            resetFlip();
+            updateStatsUi();
+            persistState();
+            if (displayName) {
+                const base = displayName.replace(/\.json$/i, '').trim() || '單字卡';
+                document.title = base + ' — 單字學習卡';
+            }
+            renderCard();
+        }
+
+        document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+            const input = e.target;
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            closeMenu();
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const data = JSON.parse(String(reader.result || '{}'));
+                    const rawEntries = extractEntriesFromUnknownJson(data);
+                    if (!rawEntries.length) {
+                        alert('無法從此 JSON 讀取單字。請使用與 DAY1 相同的 extract.results[].entries 結構，或提供含 keyword 的陣列 / words / entries。');
+                        return;
+                    }
+                    applyImportedDeck(rawEntries, file.name);
+                } catch (err) {
+                    console.warn(err);
+                    alert('JSON 解析失敗，請確認檔案為有效的 UTF-8 JSON。');
+                }
+            };
+            reader.onerror = () => alert('讀取檔案失敗。');
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        function openMenu() {
+            document.getElementById('menuBackdrop').classList.remove('hidden');
+            document.getElementById('appMenuPanel').classList.remove('hidden');
+            document.getElementById('menuOpenBtn').setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            document.getElementById('menuBackdrop').classList.add('hidden');
+            document.getElementById('appMenuPanel').classList.add('hidden');
+            document.getElementById('menuOpenBtn').setAttribute('aria-expanded', 'false');
+        }
+
+        document.getElementById('menuOpenBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const panel = document.getElementById('appMenuPanel');
+            if (panel.classList.contains('hidden')) openMenu();
+            else closeMenu();
+        });
+        document.getElementById('menuBackdrop').addEventListener('click', closeMenu);
+        document.getElementById('menuResetBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetAllProgress();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMenu();
+                return;
+            }
+            if (isFlipped) {
+                if (e.key === '1') handleRating('again');
+                if (e.key === '2') handleRating('hard');
+                if (e.key === '3') handleRating('good');
+                if (e.key === '4') handleRating('easy');
+            }
+            if (e.key === ' ' || e.key === 'Enter') {
+                toggleFlip();
+                e.preventDefault();
+            }
+        });
+
+        loadPersistedState();
+        updateStatsUi();
+        // 初始化
+        renderCard();
+
+    </script>
+</body>
+</html>
