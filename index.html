@@ -2,23 +2,44 @@
 <html lang="zh-TW" class="h-full overflow-hidden">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
     <title>單字學習卡</title>
+    <meta name="theme-color" content="#f8fafc">
+    <meta name="apple-mobile-web-app-title" content="單字學習卡">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
     <!-- 引入 Tailwind CSS 進行快速切版 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Phosphor Icons 作為圖示 -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
-        /* 整頁固定高度、禁止視窗捲動（手機瀏覽器網址列用 dvh + safe-area） */
+        /* 禁止選取字樣、長按選單；縮放主要由 viewport + 下方 JS 輔助 */
         html {
             height: 100%;
             overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         body {
             height: 100%;
             max-height: 100vh;
             overflow: hidden;
             margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         @supports (height: 100dvh) {
             body {
@@ -72,7 +93,7 @@
         }
     </style>
 </head>
-<body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation">
+<body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation select-none">
 
     <div class="app-root relative w-full max-w-md mx-auto min-h-0">
     <!-- 選單：獨立最頂一列，不與卡片內進度條同一行 -->
@@ -85,13 +106,13 @@
             <span class="w-10 sm:w-11 shrink-0 justify-self-end" aria-hidden="true"></span>
         </div>
         <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" aria-hidden="true">
-        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
+        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto touch-pan-y rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
             <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer border-b border-slate-100">
                 匯入 JSON 詞表…
             </label>
             <div id="deckHistorySection" class="hidden border-b border-slate-100">
                 <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">最近匯入（點選復原）</div>
-                <div id="deckHistoryList" class="max-h-40 overflow-y-auto no-scrollbar"></div>
+                <div id="deckHistoryList" class="max-h-40 overflow-y-auto touch-pan-y no-scrollbar"></div>
             </div>
             <button type="button" id="menuResetBtn" role="menuitem" class="w-full px-4 py-3 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 active:bg-rose-100">
                 重置所有進度
@@ -133,8 +154,9 @@
                     </div>
                     <span id="progressText" class="shrink-0 text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums tracking-widest">1/10</span>
                 </div>
-                <div class="flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-7 px-2 sm:px-4">
-                    <h2 id="frontWord" class="font-bold text-indigo-900 text-center break-words w-full max-w-full leading-tight tracking-tight" style="font-size: clamp(2rem, 12vmin, 4rem);">Word</h2>
+                <div class="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5 px-2 sm:px-4">
+                    <h2 id="frontWord" class="font-bold text-indigo-900 text-center break-words w-full max-w-full leading-tight tracking-tight shrink-0" style="font-size: clamp(2rem, 12vmin, 4rem);">Word</h2>
+                    <p id="frontKk" class="hidden max-w-full shrink-0 text-center font-normal text-slate-500 tabular-nums tracking-wide px-1 min-h-[1.35em]" style="font-size: clamp(0.9rem, 3.8vmin, 1.2rem);" lang="en"></p>
                     <button type="button" onclick="playAudio(currentWord.keyword, event)" class="text-slate-400 hover:text-indigo-500 active:text-indigo-600 transition-colors p-3 sm:p-4 rounded-full hover:bg-indigo-50 z-10 shrink-0" title="朗讀單字">
                         <i class="ph-fill ph-speaker-high text-4xl sm:text-5xl"></i>
                     </button>
@@ -152,7 +174,7 @@
                         </button>
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar space-y-3 sm:space-y-4 cursor-pointer" onclick="toggleFlip()">
+                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar space-y-3 sm:space-y-4 cursor-pointer" onclick="toggleFlip()">
                         <div id="synonymsContainer" class="hidden">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-wider">同義詞</h3>
                             <p id="synonymsText" class="text-slate-700 text-sm sm:text-base leading-relaxed"></p>
@@ -258,8 +280,12 @@
 
         function normalizeEntry(e) {
             const keyword = String(e.keyword ?? e.word ?? '').trim();
+            const kk = String(
+                e.kk ?? e.kk_phonetic ?? e.phonetic_kk ?? e.phoneticKK ?? e.kkPhonetic ?? ''
+            ).trim();
             return {
                 keyword,
+                kk,
                 pos: String(e.pos ?? e.partOfSpeech ?? '').trim() || '—',
                 synonyms: Array.isArray(e.synonyms) ? e.synonyms.map(s => String(s).trim()).filter(Boolean) : [],
                 zh_gloss: String(e.zh_gloss ?? e.zhGloss ?? e.gloss ?? e.zh ?? '').trim(),
@@ -281,6 +307,8 @@
         let currentWord = null;
         /** 換卡自動朗讀：避免快速連按導致播到上一張單字 */
         let autoSpeakCardSeq = 0;
+        let frontKkRequestSeq = 0;
+        const dictionaryPhoneticCache = new Map();
 
         /** 語音清單載入後重算（Chrome 等會延遲注入較自然語音） */
         let preferredEnglishVoiceCache = null;
@@ -505,6 +533,99 @@
             window.speechSynthesis.getVoices();
         }
 
+        function stripSlashPadding(s) {
+            return String(s || '')
+                .trim()
+                .replace(/^\/*/, '')
+                .replace(/\/*$/, '')
+                .trim();
+        }
+
+        function stripDiacritics(s) {
+            try {
+                return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            } catch {
+                return String(s);
+            }
+        }
+
+        function formatSlashPhonetic(inner) {
+            const c = stripSlashPadding(inner);
+            return c ? `/${c}/` : '';
+        }
+
+        /** 從 API 回傳的 entries 陣列中找出第一段可用音標（多義詞時不只看第一筆） */
+        function extractPhoneticFromApiArray(arr) {
+            if (!Array.isArray(arr)) return '';
+            for (const entry of arr) {
+                if (!entry || typeof entry !== 'object') continue;
+                const ph = entry.phonetics;
+                if (Array.isArray(ph)) {
+                    for (const p of ph) {
+                        const tx = p && String(p.text || '').trim();
+                        if (tx) return tx;
+                    }
+                }
+                const top = entry.phonetic && String(entry.phonetic).trim();
+                if (top) return top;
+            }
+            return '';
+        }
+
+        async function fetchDictionaryEntriesJson(query) {
+            const q = String(query || '').trim();
+            if (!q) return null;
+            const r = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(q));
+            if (!r.ok) return null;
+            const data = await r.json();
+            return Array.isArray(data) ? data : null;
+        }
+
+        async function fetchDictionaryPhonetic(word) {
+            const w = String(word || '').trim();
+            if (!w) return '';
+            const cacheKey = w.toLowerCase();
+            if (dictionaryPhoneticCache.has(cacheKey)) return dictionaryPhoneticCache.get(cacheKey);
+
+            const variants = [];
+            const add = (x) => {
+                const v = String(x || '').trim();
+                if (v && !variants.includes(v)) variants.push(v);
+            };
+            add(w);
+            add(stripDiacritics(w));
+            const firstTok = w.split(/\s+/)[0];
+            add(firstTok);
+
+            let out = '';
+            try {
+                for (const q of variants) {
+                    const arr = await fetchDictionaryEntriesJson(q);
+                    if (!arr || !arr.length) continue;
+                    const text = extractPhoneticFromApiArray(arr);
+                    if (text) {
+                        out = stripSlashPadding(text);
+                        break;
+                    }
+                }
+            } catch {
+                out = '';
+            }
+            dictionaryPhoneticCache.set(cacheKey, out);
+            return out;
+        }
+
+        function prefetchPhoneticsForQueue() {
+            for (let i = 1; i <= 12; i++) {
+                if (!wordsList[i]) break;
+                const w = wordsList[i].keyword;
+                if (!w || (wordsList[i].kk || '').trim()) continue;
+                const key = w.toLowerCase();
+                if (dictionaryPhoneticCache.has(key)) continue;
+                fetchDictionaryPhonetic(w).catch(() => {});
+            }
+        }
+
         function toggleFlip() {
             const flipRoot = document.getElementById('flipCardRoot');
             const frontFace = document.getElementById('frontFace');
@@ -572,6 +693,62 @@
             document.getElementById('progressBar').style.width = `${progressPercent}%`;
 
             document.getElementById('frontWord').innerText = currentWord.keyword;
+
+            const kkEl = document.getElementById('frontKk');
+            const jsonKk = (currentWord.kk || '').trim();
+            const kkSeq = ++frontKkRequestSeq;
+            const kwForKk = currentWord.keyword;
+            const cacheKey = String(kwForKk || '').toLowerCase();
+
+            if (kkEl) {
+                kkEl.removeAttribute('title');
+                kkEl.classList.remove('animate-pulse');
+
+                if (jsonKk) {
+                    const line = formatSlashPhonetic(jsonKk);
+                    if (line) {
+                        kkEl.textContent = line;
+                        kkEl.title = 'KK 音標（來自詞表）';
+                        kkEl.classList.remove('hidden');
+                    } else {
+                        kkEl.textContent = '';
+                        kkEl.classList.add('hidden');
+                    }
+                } else if (dictionaryPhoneticCache.has(cacheKey)) {
+                    const raw = dictionaryPhoneticCache.get(cacheKey);
+                    const line = raw ? formatSlashPhonetic(raw) : '';
+                    if (line) {
+                        kkEl.textContent = line;
+                        kkEl.title = '線上辭典參考音標（多為 IPA）';
+                        kkEl.classList.remove('hidden');
+                    } else {
+                        kkEl.textContent = '';
+                        kkEl.classList.add('hidden');
+                    }
+                } else {
+                    kkEl.textContent = '/⋯/';
+                    kkEl.title = '查詢音標中…';
+                    kkEl.classList.add('animate-pulse');
+                    kkEl.classList.remove('hidden');
+                    fetchDictionaryPhonetic(kwForKk).then((t) => {
+                        if (kkSeq !== frontKkRequestSeq) return;
+                        if (!wordsList.length || wordsList[0].keyword !== kwForKk) return;
+                        const line = t ? formatSlashPhonetic(t) : '';
+                        kkEl.classList.remove('animate-pulse');
+                        if (!line) {
+                            kkEl.textContent = '';
+                            kkEl.classList.add('hidden');
+                            kkEl.removeAttribute('title');
+                            return;
+                        }
+                        kkEl.textContent = line;
+                        kkEl.title = '線上辭典參考音標（多為 IPA）';
+                        kkEl.classList.remove('hidden');
+                    });
+                }
+            }
+
+            prefetchPhoneticsForQueue();
 
             document.getElementById('backWord').innerText = currentWord.keyword;
             document.getElementById('backPosGloss').innerText = `${currentWord.pos} ${currentWord.zh_gloss}`;
@@ -779,6 +956,18 @@
                 e.preventDefault();
             }
         });
+
+        document.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) e.preventDefault();
+        }, { passive: false });
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+                e.preventDefault();
+            }
+        }, true);
 
         loadPersistedState();
         updateDeckTitleUi();
