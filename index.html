@@ -130,6 +130,51 @@
             user-select: text;
             -webkit-user-select: text;
         }
+        /* 聽音拼字：頭尾字與中間格同一字級、同一基準線對齊 */
+        #quizWordHost .quiz-spell-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.2em;
+            font-size: clamp(2rem, 12vmin, 4rem);
+            font-weight: 700;
+            color: rgb(49 46 129);
+            line-height: 1;
+            min-width: 0;
+        }
+        #quizWordHost .quiz-edge-char {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            min-height: 1.12em;
+            flex-shrink: 0;
+        }
+        #quizWordHost .quiz-spell-row .quiz-mid-cell {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0 0 2px;
+            font: inherit;
+            font-size: inherit;
+            font-weight: 700;
+            color: inherit;
+            text-align: center;
+            line-height: 1;
+            width: 1em;
+            min-width: 1em;
+            min-height: 1.05em;
+            height: auto;
+            border: none;
+            border-radius: 0;
+            border-bottom: 2px solid rgb(199 210 254);
+            background: transparent;
+            vertical-align: baseline;
+        }
+        #quizWordHost .quiz-spell-row .quiz-mid-cell:focus {
+            border-bottom-color: rgb(99 102 241);
+            outline: none;
+        }
     </style>
 </head>
 <body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation select-none">
@@ -773,7 +818,7 @@
             const kw = cleanKeyword(keyword);
             const chars = Array.from(kw);
             const wrap = document.createElement('div');
-            wrap.className = 'flex flex-wrap items-center justify-center gap-2 sm:gap-3 min-w-0 max-w-full px-1';
+            wrap.className = 'quiz-spell-row max-w-full px-1';
 
             if (chars.length <= 2) {
                 const inp = document.createElement('input');
@@ -798,21 +843,16 @@
             }
 
             const first = document.createElement('span');
-            first.className = 'font-bold text-indigo-900 text-center leading-tight tracking-tight shrink-0 select-none';
-            first.style.fontSize = 'clamp(2rem, 12vmin, 4rem)';
+            first.className = 'quiz-edge-char select-none';
             first.textContent = chars[0];
             wrap.appendChild(first);
 
-            const midFont = 'clamp(1.35rem, 7vmin, 2.75rem)';
             const midCells = [];
             for (let i = 1; i < chars.length - 1; i++) {
                 const inp = document.createElement('input');
                 inp.type = 'text';
                 inp.maxLength = 1;
-                inp.className = 'quiz-mid-cell text-center font-bold text-indigo-900 leading-none border-2 border-indigo-100 rounded-xl bg-white focus:border-indigo-400 focus:ring-0 outline-none transition-colors';
-                inp.style.fontSize = midFont;
-                inp.style.width = '1.15em';
-                inp.style.height = '1.2em';
+                inp.className = 'quiz-mid-cell';
                 inp.setAttribute('autocomplete', 'off');
                 inp.setAttribute('spellcheck', 'false');
                 inp.setAttribute('autocapitalize', 'off');
@@ -823,8 +863,7 @@
             wireQuizMidCells(midCells);
 
             const last = document.createElement('span');
-            last.className = 'font-bold text-indigo-900 text-center leading-tight tracking-tight shrink-0 select-none';
-            last.style.fontSize = 'clamp(2rem, 12vmin, 4rem)';
+            last.className = 'quiz-edge-char select-none';
             last.textContent = chars[chars.length - 1];
             wrap.appendChild(last);
 
