@@ -91,6 +91,12 @@
             min-height: 0;
             width: 100%;
         }
+        /* 背面捲動區：長英文／無空格字串不會被螢幕右緣裁切 */
+        .card-prose-wrap {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation select-none">
@@ -105,10 +111,10 @@
             <span id="deckTitleText" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1 invisible" title=""></span>
             <span class="w-10 sm:w-11 shrink-0 justify-self-end" aria-hidden="true"></span>
         </div>
-        <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" aria-hidden="true">
+        <input type="file" id="jsonFileInput" accept=".json,application/json" multiple class="hidden" aria-hidden="true">
         <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto touch-pan-y rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
             <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer border-b border-slate-100">
-                匯入 JSON 詞表…
+                匯入 JSON 詞表（可複選多檔）…
             </label>
             <div id="deckHistorySection" class="hidden border-b border-slate-100">
                 <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">最近匯入（點選復原）</div>
@@ -128,7 +134,7 @@
             <div id="deckEmptyPrompt" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center">
                 <i class="ph ph-folder-open text-5xl sm:text-6xl text-slate-300 mb-4 shrink-0" aria-hidden="true"></i>
                 <h2 class="text-lg sm:text-xl font-bold text-slate-700 shrink-0">尚無單字詞表</h2>
-                <p class="text-sm text-slate-500 mt-2 max-w-[20rem] leading-relaxed shrink-0">請點左上角選單中的「匯入 JSON 詞表」載入檔案後即可開始練習。</p>
+                <p class="text-sm text-slate-500 mt-2 max-w-[20rem] leading-relaxed shrink-0">請點左上角選單中的「匯入 JSON 詞表」載入檔案後即可開始練習；可一次選取多個 JSON，會合併成同一副牌。</p>
             </div>
 
             <div id="deckCompleteScreen" class="hidden absolute inset-0 z-40 bg-white rounded-2xl flex flex-col min-h-0 overflow-hidden border border-slate-100">
@@ -164,30 +170,30 @@
             </div>
 
             <!-- 卡片背面：僅內文區可捲動，按鈕永遠貼底可點 -->
-            <div id="backFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl rotate-y-180 border border-slate-100 flex flex-col min-h-0 overflow-hidden pointer-events-none transition-all duration-300 z-20">
-                <div class="flex-1 min-h-0 flex flex-col overflow-hidden p-4 sm:p-5">
-                    <div class="shrink-0 border-b border-slate-100 pb-3 mb-3 relative cursor-pointer" onclick="toggleFlip()">
+            <div id="backFace" class="absolute inset-0 backface-hidden bg-white rounded-2xl rotate-y-180 border border-slate-100 flex flex-col min-h-0 min-w-0 overflow-hidden pointer-events-none transition-all duration-300 z-20">
+                <div class="flex-1 min-h-0 min-w-0 w-full flex flex-col overflow-hidden p-4 sm:p-5">
+                    <div class="shrink-0 min-w-0 border-b border-slate-100 pb-3 mb-3 relative cursor-pointer" onclick="toggleFlip()">
                         <h2 id="backWord" class="text-2xl sm:text-3xl font-bold text-indigo-900 mb-1 pr-12 sm:pr-14 leading-tight break-words">Word</h2>
-                        <p id="backPosGloss" class="text-base sm:text-lg text-slate-600 font-medium leading-snug">pos. / gloss</p>
+                        <p id="backPosGloss" class="card-prose-wrap pr-10 sm:pr-12 text-base sm:text-lg text-slate-600 font-medium leading-snug">pos. / gloss</p>
                         <button type="button" onclick="playAudio(currentWord.keyword, event)" class="absolute top-0 right-0 text-slate-400 hover:text-indigo-500 transition-colors p-2 z-10" title="朗讀單字">
                             <i class="ph-fill ph-speaker-high text-2xl sm:text-3xl"></i>
                         </button>
                     </div>
 
-                    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar space-y-3 sm:space-y-4 cursor-pointer" onclick="toggleFlip()">
-                        <div id="synonymsContainer" class="hidden">
+                    <div class="flex-1 min-h-0 min-w-0 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar space-y-3 sm:space-y-4 cursor-pointer" onclick="toggleFlip()">
+                        <div id="synonymsContainer" class="hidden min-w-0">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-wider">同義詞</h3>
-                            <p id="synonymsText" class="text-slate-700 text-sm sm:text-base leading-relaxed"></p>
+                            <p id="synonymsText" class="card-prose-wrap text-slate-700 text-sm sm:text-base leading-relaxed"></p>
                         </div>
 
-                        <div id="phrasesContainer" class="hidden">
+                        <div id="phrasesContainer" class="hidden min-w-0">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-1 uppercase tracking-wider">常用片語</h3>
-                            <ul id="phrasesList" class="list-disc pl-5 sm:pl-6 text-slate-700 space-y-1 text-sm sm:text-base leading-relaxed"></ul>
+                            <ul id="phrasesList" class="card-prose-wrap list-disc pl-5 sm:pl-6 text-slate-700 space-y-1 text-sm sm:text-base leading-relaxed w-full max-w-full"></ul>
                         </div>
 
-                        <div id="examplesContainer" class="hidden">
+                        <div id="examplesContainer" class="hidden min-w-0">
                             <h3 class="text-xs sm:text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider">例句</h3>
-                            <div id="examplesList" class="space-y-3 sm:space-y-4"></div>
+                            <div id="examplesList" class="min-w-0 space-y-3 sm:space-y-4"></div>
                         </div>
                     </div>
                 </div>
@@ -243,10 +249,19 @@
 
         function flattenExtract(data) {
             if (!data || typeof data !== 'object') return [];
+            // gemini-image-words 補充匯出：{ extracts: [{ results: [{ entries: [...] }] }] }
+            if (Array.isArray(data.extracts)) {
+                return data.extracts.flatMap((chunk) => {
+                    if (!chunk || typeof chunk !== 'object') return [];
+                    const results = chunk.results;
+                    if (!Array.isArray(results)) return [];
+                    return results.flatMap((r) => (Array.isArray(r?.entries) ? r.entries : []));
+                });
+            }
             const ext = data.extract || data;
             const results = ext.results;
             if (!Array.isArray(results)) return [];
-            return results.flatMap(r => (Array.isArray(r?.entries) ? r.entries : []));
+            return results.flatMap((r) => (Array.isArray(r?.entries) ? r.entries : []));
         }
 
         function extractEntriesFromUnknownJson(data) {
@@ -415,6 +430,15 @@
             renderDeckHistoryMenu();
         }
 
+        function removeDeckFromHistory(displayName) {
+            const name = String(displayName || '').trim();
+            if (!name) return;
+            if (!confirm(`從歷程中移除「${name}」？`)) return;
+            const list = loadDeckHistory().filter((h) => h.displayName !== name);
+            localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
+            renderDeckHistoryMenu();
+        }
+
         function renderDeckHistoryMenu() {
             const section = document.getElementById('deckHistorySection');
             const container = document.getElementById('deckHistoryList');
@@ -427,16 +451,32 @@
             }
             section.classList.remove('hidden');
             list.forEach((item) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-stretch border-b border-slate-50 last:border-b-0';
+
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.role = 'menuitem';
-                btn.className = 'w-full px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100 border-b border-slate-50 last:border-b-0';
+                btn.className = 'flex-1 min-w-0 px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100';
                 btn.innerHTML = `<span class="block text-sm font-medium text-slate-800 truncate">${escapeHtml(item.displayName)}</span><span class="block text-[11px] text-slate-400 mt-0.5">復原此詞表（進度重設）</span>`;
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     restoreDeckFromHistory(item);
                 });
-                container.appendChild(btn);
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'shrink-0 flex items-center justify-center px-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 rounded-lg my-1 mr-1 touch-manipulation';
+                delBtn.setAttribute('aria-label', '從歷程中刪除此項目');
+                delBtn.innerHTML = '<i class="ph ph-trash text-lg" aria-hidden="true"></i>';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeDeckFromHistory(item.displayName);
+                });
+
+                row.appendChild(btn);
+                row.appendChild(delBtn);
+                container.appendChild(row);
             });
         }
 
@@ -768,6 +808,7 @@
                 phrContainer.classList.remove('hidden');
                 currentWord.phrases.forEach(phr => {
                     const li = document.createElement('li');
+                    li.className = 'card-prose-wrap pl-0.5';
                     li.innerHTML = `<span class="font-semibold text-indigo-700">${phr.en}</span> - ${phr.zh}`;
                     phrList.appendChild(li);
                 });
@@ -782,7 +823,7 @@
                 exContainer.classList.remove('hidden');
                 currentWord.examples.forEach(ex => {
                     const div = document.createElement('div');
-                    div.className = 'bg-slate-50 p-3 sm:p-4 rounded-xl flex items-start gap-3';
+                    div.className = 'bg-slate-50 p-3 sm:p-4 rounded-xl flex items-start gap-3 min-w-0';
                     
                     const btnHtml = `
                         <button type="button" onclick="playAudio('${ex.en.replace(/'/g, "\\'")}', event)" class="text-indigo-500 active:text-indigo-700 mt-0.5 shrink-0 p-1" title="朗讀例句">
@@ -791,9 +832,9 @@
                     `;
                     
                     const textHtml = `
-                        <div class="min-w-0">
-                            <p class="text-slate-800 text-sm sm:text-base font-medium mb-1 leading-relaxed">${ex.en}</p>
-                            <p class="text-slate-500 text-xs sm:text-sm leading-relaxed">${ex.zh}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="card-prose-wrap text-slate-800 text-sm sm:text-base font-medium mb-1 leading-relaxed">${ex.en}</p>
+                            <p class="card-prose-wrap text-slate-500 text-xs sm:text-sm leading-relaxed">${ex.zh}</p>
                         </div>
                     `;
                     
@@ -890,29 +931,90 @@
             renderCard();
         }
 
+        function makeMultiFileDeckDisplayName(files) {
+            const names = Array.from(files || [])
+                .map((f) => stripJsonExtension(f.name))
+                .filter(Boolean);
+            if (names.length === 0) return '詞表';
+            if (names.length === 1) return names[0];
+            if (names.length <= 3) return names.join(' + ');
+            return `${names[0]} + ${names[1]} 等 ${names.length} 檔`;
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('read'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        /**
+         * 複選多個 JSON：依檔案順序合併條目後套用同一副牌。
+         * 多檔時若不同檔出現相同 keyword（不分大小寫），只保留較早檔／較前出現的那一筆。
+         */
+        async function importJsonFiles(fileList) {
+            const files = Array.from(fileList || []).filter(Boolean);
+            if (!files.length) return;
+            closeMenu();
+            const multi = files.length > 1;
+            const seenKw = new Set();
+            const mergedRaw = [];
+            const errors = [];
+
+            for (const file of files) {
+                try {
+                    const text = await readFileAsText(file);
+                    const data = JSON.parse(text);
+                    const raw = extractEntriesFromUnknownJson(data);
+                    if (!raw.length) {
+                        errors.push(`「${file.name}」：讀不到單字`);
+                        continue;
+                    }
+                    for (const e of raw) {
+                        const k = String(e.keyword ?? e.word ?? '').trim();
+                        if (!k) continue;
+                        if (multi) {
+                            const key = k.toLowerCase();
+                            if (seenKw.has(key)) continue;
+                            seenKw.add(key);
+                        }
+                        mergedRaw.push(e);
+                    }
+                } catch (err) {
+                    const msg = err instanceof SyntaxError ? 'JSON 格式無效' : '無法讀取檔案';
+                    errors.push(`「${file.name}」：${msg}`);
+                }
+            }
+
+            if (!mergedRaw.length) {
+                alert(
+                    errors.length
+                        ? errors.join('\n')
+                        : '沒有可匯入的單字。請使用 extract.results[].entries、extracts[].results[].entries（或 words、entries 陣列）等結構，且項目需含 keyword 或 word。'
+                );
+                return;
+            }
+
+            const displayName = files.length === 1 ? files[0].name : makeMultiFileDeckDisplayName(files);
+            applyImportedDeck(mergedRaw, displayName);
+
+            if (errors.length) {
+                alert('以下檔案未併入（其餘已成功載入）：\n' + errors.join('\n'));
+            }
+        }
+
         document.getElementById('jsonFileInput').addEventListener('change', (e) => {
             const input = e.target;
-            const file = input.files && input.files[0];
+            /** 先複製成陣列再清空 input；否則清 value 後 FileList 會變空，匯入不會執行 */
+            const files = Array.from(input.files || []);
             input.value = '';
-            if (!file) return;
-            closeMenu();
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
-                    const data = JSON.parse(String(reader.result || '{}'));
-                    const rawEntries = extractEntriesFromUnknownJson(data);
-                    if (!rawEntries.length) {
-                        alert('無法從此 JSON 讀取單字。請使用 extract.results[].entries（或 extract.entries、words、entries 陣列）等結構，且項目需含 keyword 或 word。');
-                        return;
-                    }
-                    applyImportedDeck(rawEntries, file.name);
-                } catch (err) {
-                    console.warn(err);
-                    alert('JSON 解析失敗，請確認檔案為有效的 UTF-8 JSON。');
-                }
-            };
-            reader.onerror = () => alert('讀取檔案失敗。');
-            reader.readAsText(file, 'UTF-8');
+            if (!files.length) return;
+            importJsonFiles(files).catch((err) => {
+                console.warn(err);
+                alert('匯入過程發生錯誤。');
+            });
         });
 
         function openMenu() {
