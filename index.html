@@ -97,6 +97,39 @@
             overflow-wrap: anywhere;
             word-break: break-word;
         }
+        /* 與 .app-root 內容區同寬、同左右 inset（供 fixed 全螢幕層對齊主畫面頂列） */
+        .app-bar-strip {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 28rem;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+            padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+        }
+        /* 主畫面頂列／測驗頂列共用：左右固定寬，中欄 1fr，標題才會與主畫面同一幾何中心 */
+        .app-topbar-grid {
+            display: grid;
+            grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .app-topbar-side {
+            display: flex;
+            height: 2.75rem;
+            align-items: center;
+        }
+        .app-topbar-side--start {
+            justify-content: flex-start;
+        }
+        .app-topbar-side--end {
+            justify-content: flex-end;
+        }
+        #quizOverlay input {
+            user-select: text;
+            -webkit-user-select: text;
+        }
     </style>
 </head>
 <body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation select-none">
@@ -104,12 +137,18 @@
     <div class="app-root relative w-full max-w-md mx-auto min-h-0">
     <!-- 選單：獨立最頂一列，不與卡片內進度條同一行 -->
     <div id="menuToolbar" class="relative z-[60] shrink-0 w-full min-h-[2.75rem] py-1">
-        <div class="grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-2 w-full">
-            <button type="button" id="menuOpenBtn" class="justify-self-start p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="開啟選單" aria-expanded="false" aria-controls="appMenuPanel">
-                <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
-            </button>
+        <div class="app-topbar-grid">
+            <div class="app-topbar-side app-topbar-side--start">
+                <button type="button" id="menuOpenBtn" class="shrink-0 p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="開啟選單" aria-expanded="false" aria-controls="appMenuPanel">
+                    <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
+                </button>
+            </div>
             <span id="deckTitleText" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1 invisible" title=""></span>
-            <span class="w-10 sm:w-11 shrink-0 justify-self-end" aria-hidden="true"></span>
+            <div class="app-topbar-side app-topbar-side--end">
+                <button type="button" id="quizOpenBtn" class="shrink-0 p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="聽音拼字測驗" title="聽音拼字測驗">
+                    <i class="ph ph-exam text-2xl sm:text-[1.75rem]" aria-hidden="true"></i>
+                </button>
+            </div>
         </div>
         <input type="file" id="jsonFileInput" accept=".json,application/json" multiple class="hidden" aria-hidden="true">
         <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto touch-pan-y rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
@@ -126,6 +165,72 @@
         </nav>
     </div>
     <div id="menuBackdrop" class="hidden fixed inset-0 z-[55] bg-slate-900/30" aria-hidden="true"></div>
+
+    <!-- 聽音拼字測驗：頂列與 menuToolbar 共用 .app-topbar-grid + .app-bar-strip 對齊主畫面 -->
+    <div id="quizOverlay" class="hidden fixed inset-0 z-[70] flex flex-col bg-slate-100" aria-modal="true" role="dialog" aria-labelledby="quizOverlayTitle">
+        <div class="shrink-0 w-full border-b border-slate-200 bg-white shadow-sm pt-[max(0.5rem,env(safe-area-inset-top,0px))]">
+            <div class="app-bar-strip min-h-[2.75rem] py-1">
+                <div class="app-topbar-grid">
+                    <div class="app-topbar-side app-topbar-side--start">
+                        <button type="button" id="quizCloseBtn" class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 text-sm sm:text-base font-semibold leading-none">關閉</button>
+                    </div>
+                    <span id="quizOverlayTitle" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1">聽音拼字</span>
+                    <div class="app-topbar-side app-topbar-side--end">
+                        <span id="quizProgressWrap" class="block min-w-0 w-full max-w-[3.5rem] text-center text-sm sm:text-base font-semibold text-slate-700 tabular-nums truncate invisible"><span id="quizProgressText">0/0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <!-- 步驟一：出題方式 -->
+            <div id="quizModePanel" class="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y flex flex-col items-center justify-center px-5 py-8 w-full max-w-md mx-auto">
+                <p class="text-base font-semibold text-slate-800 mb-1 text-center">選擇出題方式</p>
+                <p id="quizModeCountHint" class="text-xs text-slate-500 mb-8 text-center"></p>
+                <div class="w-full flex flex-col gap-3">
+                    <button type="button" id="quizModeRandom" class="w-full py-4 px-4 rounded-2xl border-2 border-indigo-200 bg-white text-left shadow-sm hover:bg-indigo-50 active:bg-indigo-100 transition-colors">
+                        <span class="block text-base font-bold text-indigo-900">隨機出題</span>
+                        <span class="block text-xs text-slate-500 mt-1">全部單字，順序洗牌</span>
+                    </button>
+                    <button type="button" id="quizModeSequential" class="w-full py-4 px-4 rounded-2xl border-2 border-slate-200 bg-white text-left shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                        <span class="block text-base font-bold text-slate-900">正常出題</span>
+                        <span class="block text-xs text-slate-500 mt-1">依詞表原始順序</span>
+                    </button>
+                    <button type="button" id="quizModeSample20" class="w-full py-4 px-4 rounded-2xl border-2 border-teal-200 bg-white text-left shadow-sm hover:bg-teal-50 active:bg-teal-100 transition-colors">
+                        <span class="block text-base font-bold text-teal-900">隨機抽考 20 題</span>
+                        <span class="block text-xs text-slate-500 mt-1">從詞表隨機抽出至多 20 題</span>
+                    </button>
+                </div>
+            </div>
+            <!-- 步驟二：作答（單字＋喇吧區塊與主畫面 frontFace 內層同結構：置中；送出在下方） -->
+            <div id="quizPlayPanel" class="hidden flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div class="flex-1 min-h-0 flex flex-col p-3 sm:p-5">
+                    <!-- 與 frontFace 頂部進度列同高，讓單字＋喇吧與主畫面垂直位置對齊 -->
+                    <div class="shrink-0 w-full flex items-center gap-2 sm:gap-3 px-0.5 pt-0 pb-2 sm:pb-3 invisible pointer-events-none select-none" aria-hidden="true">
+                        <div class="flex-1 min-w-0 bg-slate-200 rounded-full h-1.5 sm:h-2 opacity-0"></div>
+                        <span class="shrink-0 text-[10px] sm:text-xs font-bold tabular-nums tracking-widest text-slate-400">0/0</span>
+                    </div>
+                    <div class="flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5 px-2 sm:px-4 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar">
+                        <div id="quizWordHost" class="w-full flex justify-center shrink-0 min-h-0"></div>
+                        <button type="button" id="quizSpeakBtn" class="text-slate-400 hover:text-indigo-500 active:text-indigo-600 transition-colors p-3 sm:p-4 rounded-full hover:bg-indigo-50 z-10 shrink-0" title="朗讀單字">
+                            <i class="ph-fill ph-speaker-high text-4xl sm:text-5xl" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="shrink-0 flex flex-col items-center gap-4 pt-2 pb-6 sm:pb-8 px-2 w-full max-w-md mx-auto">
+                        <button type="button" id="quizSubmitBtn" class="px-8 py-3 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 active:bg-slate-900">送出</button>
+                        <div id="quizTapNext" class="hidden w-full max-w-sm flex flex-col items-center cursor-pointer select-none rounded-2xl border border-dashed border-slate-300 bg-white/80 px-4 py-5 touch-manipulation" tabindex="0" role="button" aria-label="進入下一題">
+                            <div id="quizFeedback" class="hidden flex flex-col items-center gap-2 text-center">
+                                <i id="quizFeedbackIcon" class="ph-fill ph-check-circle text-6xl text-emerald-500" aria-hidden="true"></i>
+                                <p id="quizFeedbackWrongLine" class="hidden text-sm text-slate-700 card-prose-wrap max-w-full">
+                                    正確答案：<span id="quizAnswerReveal" class="font-semibold text-indigo-800"></span>
+                                </p>
+                            </div>
+                            <p id="quizNextHint" class="hidden text-sm text-slate-400 mt-3 text-center">點一下進入下一題</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 卡片：依螢幕剩餘高度自適應 -->
     <div class="card-stage perspective">
@@ -571,6 +676,333 @@
                 preferredEnglishVoiceCache = null;
             });
             window.speechSynthesis.getVoices();
+        }
+
+        /** 與 Test.html 一致：keyword 清理與拼字比對 */
+        function cleanKeyword(s) {
+            return String(s || '').replace(/\*+/g, '').trim();
+        }
+
+        function normalizeForSpell(s) {
+            /* 先去掉重音再比對：一般鍵盤不易輸入 é 等，打 e 應視為正確 */
+            const base = stripDiacritics(String(s || ''));
+            return base
+                .trim()
+                .toLowerCase()
+                .replace(/[\u2019']/g, "'")
+                .replace(/[^a-z0-9'\- ]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function shuffleArray(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        let quizQueue = [];
+        let quizIndex = 0;
+        let quizPhase = 'idle';
+        let quizCurrentKeyword = '';
+
+        function isQuizOpen() {
+            const el = document.getElementById('quizOverlay');
+            return el && !el.classList.contains('hidden');
+        }
+
+        function wireQuizMidCells(cells) {
+            cells.forEach((cell, j) => {
+                cell.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !cell.value) {
+                        if (j > 0) {
+                            cells[j - 1].focus();
+                            cells[j - 1].select();
+                        }
+                        e.preventDefault();
+                        return;
+                    }
+                    if (e.key === 'ArrowLeft' && j > 0) {
+                        cells[j - 1].focus();
+                        e.preventDefault();
+                    }
+                    if (e.key === 'ArrowRight' && j < cells.length - 1) {
+                        cells[j + 1].focus();
+                        e.preventDefault();
+                    }
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitQuizAnswer();
+                    }
+                });
+                cell.addEventListener('input', () => {
+                    let v = cell.value;
+                    if (v.length > 1) {
+                        const extra = v.slice(1);
+                        v = v.charAt(0);
+                        cell.value = v;
+                        for (let k = 0; k < extra.length && j + 1 + k < cells.length; k++) {
+                            cells[j + 1 + k].value = extra.charAt(k);
+                        }
+                        const lastIdx = Math.min(j + extra.length, cells.length - 1);
+                        cells[lastIdx].focus();
+                    } else if (cell.value && j < cells.length - 1) {
+                        cells[j + 1].focus();
+                    }
+                });
+                cell.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const t = (e.clipboardData || window.clipboardData).getData('text') || '';
+                    const chars = Array.from(t);
+                    let cj = j;
+                    for (let p = 0; p < chars.length && cj < cells.length; p++, cj++) {
+                        cells[cj].value = chars[p];
+                    }
+                    if (cj <= cells.length - 1) cells[cj].focus();
+                    else cells[cells.length - 1].focus();
+                });
+            });
+        }
+
+        function renderQuizWordArea(keyword) {
+            const host = document.getElementById('quizWordHost');
+            host.innerHTML = '';
+            const kw = cleanKeyword(keyword);
+            const chars = Array.from(kw);
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-wrap items-center justify-center gap-2 sm:gap-3 min-w-0 max-w-full px-1';
+
+            if (chars.length <= 2) {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.id = 'quizFullInput';
+                inp.className = 'w-full max-w-full font-bold text-indigo-900 text-center leading-tight tracking-tight bg-transparent border-0 border-b-2 border-indigo-200/90 outline-none focus:border-indigo-500 rounded-none px-2 py-2 min-w-0';
+                inp.style.fontSize = 'clamp(2rem, 12vmin, 4rem)';
+                inp.setAttribute('autocomplete', 'off');
+                inp.setAttribute('spellcheck', 'false');
+                inp.setAttribute('autocapitalize', 'off');
+                inp.setAttribute('autocorrect', 'off');
+                wrap.appendChild(inp);
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitQuizAnswer();
+                    }
+                });
+                host.appendChild(wrap);
+                setTimeout(() => inp.focus(), 120);
+                return;
+            }
+
+            const first = document.createElement('span');
+            first.className = 'font-bold text-indigo-900 text-center leading-tight tracking-tight shrink-0 select-none';
+            first.style.fontSize = 'clamp(2rem, 12vmin, 4rem)';
+            first.textContent = chars[0];
+            wrap.appendChild(first);
+
+            const midFont = 'clamp(1.35rem, 7vmin, 2.75rem)';
+            const midCells = [];
+            for (let i = 1; i < chars.length - 1; i++) {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.maxLength = 1;
+                inp.className = 'quiz-mid-cell text-center font-bold text-indigo-900 leading-none border-2 border-indigo-100 rounded-xl bg-white focus:border-indigo-400 focus:ring-0 outline-none transition-colors';
+                inp.style.fontSize = midFont;
+                inp.style.width = '1.15em';
+                inp.style.height = '1.2em';
+                inp.setAttribute('autocomplete', 'off');
+                inp.setAttribute('spellcheck', 'false');
+                inp.setAttribute('autocapitalize', 'off');
+                inp.setAttribute('autocorrect', 'off');
+                wrap.appendChild(inp);
+                midCells.push(inp);
+            }
+            wireQuizMidCells(midCells);
+
+            const last = document.createElement('span');
+            last.className = 'font-bold text-indigo-900 text-center leading-tight tracking-tight shrink-0 select-none';
+            last.style.fontSize = 'clamp(2rem, 12vmin, 4rem)';
+            last.textContent = chars[chars.length - 1];
+            wrap.appendChild(last);
+
+            host.appendChild(wrap);
+            setTimeout(() => {
+                if (midCells[0]) midCells[0].focus();
+            }, 120);
+        }
+
+        function gatherQuizBuiltKeyword() {
+            const kw = quizCurrentKeyword;
+            const chars = Array.from(kw);
+            if (chars.length <= 2) {
+                const el = document.getElementById('quizFullInput');
+                return el ? el.value : '';
+            }
+            let s = '';
+            const mids = document.querySelectorAll('#quizWordHost .quiz-mid-cell');
+            for (let i = 0; i < chars.length; i++) {
+                if (i === 0 || i === chars.length - 1) {
+                    s += chars[i];
+                } else {
+                    const cell = mids[i - 1];
+                    s += cell && cell.value ? cell.value : '';
+                }
+            }
+            return s;
+        }
+
+        function submitQuizAnswer() {
+            if (!isQuizOpen() || quizPhase !== 'input') return;
+            const built = gatherQuizBuiltKeyword();
+            const ok = normalizeForSpell(built) === normalizeForSpell(quizCurrentKeyword);
+
+            quizPhase = 'feedback';
+            document.querySelectorAll('#quizWordHost input').forEach((el) => {
+                el.disabled = true;
+            });
+            const sub = document.getElementById('quizSubmitBtn');
+            if (sub) sub.classList.add('hidden');
+
+            const fb = document.getElementById('quizFeedback');
+            const icon = document.getElementById('quizFeedbackIcon');
+            const wrongLine = document.getElementById('quizFeedbackWrongLine');
+            const ansSpan = document.getElementById('quizAnswerReveal');
+            const tap = document.getElementById('quizTapNext');
+            const hint = document.getElementById('quizNextHint');
+
+            if (fb) fb.classList.remove('hidden');
+            if (tap) tap.classList.remove('hidden');
+            if (hint) hint.classList.remove('hidden');
+            if (icon) {
+                icon.className = ok
+                    ? 'ph-fill ph-check-circle text-6xl text-emerald-500'
+                    : 'ph-fill ph-x-circle text-6xl text-rose-500';
+            }
+            if (wrongLine && ansSpan) {
+                if (ok) {
+                    wrongLine.classList.add('hidden');
+                } else {
+                    wrongLine.classList.remove('hidden');
+                    ansSpan.textContent = quizCurrentKeyword;
+                }
+            }
+        }
+
+        function advanceQuiz() {
+            if (!isQuizOpen() || quizPhase !== 'feedback') return;
+            quizIndex++;
+            if (quizIndex >= quizQueue.length) {
+                alert('本輪測驗完成！');
+                closeQuiz();
+                return;
+            }
+            quizPhase = 'input';
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            quizPhase = 'input';
+            quizCurrentKeyword = quizQueue[quizIndex];
+
+            const prog = document.getElementById('quizProgressText');
+            if (prog) prog.textContent = `${quizIndex + 1}/${quizQueue.length}`;
+
+            const sub = document.getElementById('quizSubmitBtn');
+            if (sub) sub.classList.remove('hidden');
+
+            const fb = document.getElementById('quizFeedback');
+            const tap = document.getElementById('quizTapNext');
+            const hint = document.getElementById('quizNextHint');
+            if (fb) fb.classList.add('hidden');
+            if (tap) tap.classList.add('hidden');
+            if (hint) hint.classList.add('hidden');
+
+            renderQuizWordArea(quizCurrentKeyword);
+
+            window.setTimeout(() => {
+                playAudio(quizCurrentKeyword);
+            }, 280);
+        }
+
+        function getQuizKeywordList() {
+            return baselineWords.map((w) => cleanKeyword(w.keyword)).filter(Boolean);
+        }
+
+        /** mode: 'random' | 'sequential' | 'sample20' */
+        function buildQuizQueue(mode) {
+            const all = getQuizKeywordList();
+            if (!all.length) return [];
+            if (mode === 'sequential') {
+                return all.slice();
+            }
+            if (mode === 'sample20') {
+                const shuffled = shuffleArray(all);
+                return shuffled.slice(0, Math.min(20, shuffled.length));
+            }
+            return shuffleArray(all);
+        }
+
+        function showQuizModeStep() {
+            const modePanel = document.getElementById('quizModePanel');
+            const playPanel = document.getElementById('quizPlayPanel');
+            const pw = document.getElementById('quizProgressWrap');
+            const hint = document.getElementById('quizModeCountHint');
+            if (modePanel) modePanel.classList.remove('hidden');
+            if (playPanel) playPanel.classList.add('hidden');
+            if (pw) pw.classList.add('invisible');
+            const n = getQuizKeywordList().length;
+            if (hint) {
+                hint.textContent = n
+                    ? `目前詞表共 ${n} 個單字。未滿 20 題時，「隨機抽考 20 題」會考全部。`
+                    : '';
+            }
+        }
+
+        function startQuizWithMode(mode) {
+            const queue = buildQuizQueue(mode);
+            if (!queue.length) {
+                alert('詞表中沒有可測驗的單字。');
+                return;
+            }
+            quizQueue = queue;
+            quizIndex = 0;
+            quizPhase = 'input';
+            const modePanel = document.getElementById('quizModePanel');
+            const playPanel = document.getElementById('quizPlayPanel');
+            const pw = document.getElementById('quizProgressWrap');
+            if (modePanel) modePanel.classList.add('hidden');
+            if (playPanel) playPanel.classList.remove('hidden');
+            if (pw) pw.classList.remove('invisible');
+            renderQuizQuestion();
+        }
+
+        function openQuiz() {
+            closeMenu();
+            if (!baselineWords.length) {
+                alert('請先匯入 JSON 詞表。');
+                return;
+            }
+            if (!getQuizKeywordList().length) {
+                alert('詞表中沒有可測驗的單字。');
+                return;
+            }
+            document.getElementById('quizOverlay').classList.remove('hidden');
+            showQuizModeStep();
+        }
+
+        function closeQuiz() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            const ov = document.getElementById('quizOverlay');
+            if (ov) ov.classList.add('hidden');
+            quizPhase = 'idle';
+            quizQueue = [];
+            quizCurrentKeyword = '';
+            showQuizModeStep();
+            const host = document.getElementById('quizWordHost');
+            if (host) host.innerHTML = '';
         }
 
         function stripSlashPadding(s) {
@@ -1042,9 +1474,40 @@
             resetAllProgress();
         });
 
+        document.getElementById('quizOpenBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openQuiz();
+        });
+        document.getElementById('quizModeRandom').addEventListener('click', () => startQuizWithMode('random'));
+        document.getElementById('quizModeSequential').addEventListener('click', () => startQuizWithMode('sequential'));
+        document.getElementById('quizModeSample20').addEventListener('click', () => startQuizWithMode('sample20'));
+        document.getElementById('quizCloseBtn').addEventListener('click', () => closeQuiz());
+        document.getElementById('quizSpeakBtn').addEventListener('click', (e) => {
+            playAudio(quizCurrentKeyword, e);
+        });
+        document.getElementById('quizSubmitBtn').addEventListener('click', () => submitQuizAnswer());
+        document.getElementById('quizTapNext').addEventListener('click', (e) => {
+            e.stopPropagation();
+            advanceQuiz();
+        });
+        document.getElementById('quizTapNext').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                advanceQuiz();
+            }
+        });
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                if (isQuizOpen()) {
+                    closeQuiz();
+                    e.preventDefault();
+                    return;
+                }
                 closeMenu();
+                return;
+            }
+            if (isQuizOpen()) {
                 return;
             }
             if (isFlipped) {
