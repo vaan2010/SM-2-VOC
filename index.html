@@ -526,9 +526,35 @@
                         easy: stats.easy
                     }
                 }));
+                syncCurrentDeckToHistory();
             } catch (e) {
                 console.warn('儲存進度失敗', e);
             }
+        }
+
+        /** 將目前詞表與進度寫回「同 displayName」的歷程項目（與主畫面同步） */
+        function syncCurrentDeckToHistory() {
+            const name = String(currentDeckDisplayName || '').trim();
+            if (!name || !baselineWords.length) return;
+            let list = loadDeckHistory();
+            const entry = {
+                displayName: name,
+                baselineWords: baselineWords.map(normalizeEntry).filter((w) => w.keyword),
+                wordsList: wordsList.map(normalizeEntry).filter((w) => w.keyword),
+                initialTotal,
+                stats: {
+                    again: stats.again,
+                    hard: stats.hard,
+                    good: stats.good,
+                    easy: stats.easy
+                },
+                savedAt: Date.now(),
+            };
+            list = list.filter((h) => h.displayName !== name);
+            list.unshift(entry);
+            if (list.length > DECK_HISTORY_MAX) list = list.slice(0, DECK_HISTORY_MAX);
+            localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
+            renderDeckHistoryMenu();
         }
 
         function stripJsonExtension(filename) {
@@ -565,21 +591,6 @@
             }
         }
 
-        function saveDeckToHistory(displayLabel, baselineArr) {
-            const name = stripJsonExtension(displayLabel) || '詞表';
-            const entry = {
-                displayName: name,
-                baselineWords: baselineArr.map((w) => normalizeEntry(w)).filter((w) => w.keyword),
-                savedAt: Date.now(),
-            };
-            if (!entry.baselineWords.length) return;
-            let list = loadDeckHistory().filter((h) => h.displayName !== name);
-            list.unshift(entry);
-            if (list.length > DECK_HISTORY_MAX) list = list.slice(0, DECK_HISTORY_MAX);
-            localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
-            renderDeckHistoryMenu();
-        }
-
         function removeDeckFromHistory(displayName) {
             const name = String(displayName || '').trim();
             if (!name) return;
@@ -587,6 +598,35 @@
             const list = loadDeckHistory().filter((h) => h.displayName !== name);
             localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
             renderDeckHistoryMenu();
+
+            if (String(currentDeckDisplayName || '').trim() === name) {
+                try {
+                    /** 不可只 removeItem：重新整理後 loadPersistedState 會略過，內嵌 rawJsonData 會再度出現 */
+                    localStorage.setItem(
+                        STORAGE_KEY,
+                        JSON.stringify({
+                            v: 2,
+                            initialTotal: 0,
+                            baselineWords: [],
+                            wordsList: [],
+                            deckDisplayName: '',
+                            stats: { again: 0, hard: 0, good: 0, easy: 0 },
+                        })
+                    );
+                } catch (e) {
+                    console.warn(e);
+                }
+                baselineWords = [];
+                wordsList = [];
+                initialTotal = 0;
+                stats.again = stats.hard = stats.good = stats.easy = 0;
+                currentDeckDisplayName = '';
+                isFlipped = false;
+                resetFlip();
+                updateDeckTitleUi();
+                updateStatsUi();
+                renderCard();
+            }
         }
 
         function renderDeckHistoryMenu() {
@@ -608,7 +648,7 @@
                 btn.type = 'button';
                 btn.role = 'menuitem';
                 btn.className = 'flex-1 min-w-0 px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100';
-                btn.innerHTML = `<span class="block text-sm font-medium text-slate-800 truncate">${escapeHtml(item.displayName)}</span><span class="block text-[11px] text-slate-400 mt-0.5">復原此詞表（進度重設）</span>`;
+                btn.innerHTML = `<span class="block text-sm font-medium text-slate-800 truncate">${escapeHtml(item.displayName)}</span><span class="block text-[11px] text-slate-400 mt-0.5">復原詞表與已存進度</span>`;
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     restoreDeckFromHistory(item);
@@ -630,15 +670,49 @@
             });
         }
 
+        function sanitizeWordsListFromBaseline(wl, baseline) {
+            const allowed = new Set(baseline.map((w) => w.keyword));
+            const raw = (wl || []).map(normalizeEntry).filter((w) => w.keyword && allowed.has(w.keyword));
+            return raw.length ? raw : baseline.slice();
+        }
+
         function restoreDeckFromHistory(item) {
-            const list = (item.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
-            if (!list.length) {
+            const base = (item.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!base.length) {
                 alert('此紀錄沒有單字資料。');
                 return;
             }
-            if (!confirm(`復原詞表「${item.displayName}」並重設學習進度？`)) return;
+            const hasSnap =
+                item.stats &&
+                typeof item.stats === 'object' &&
+                Array.isArray(item.wordsList);
+            const msg = hasSnap
+                ? `復原詞表「${item.displayName}」？\n將載入歷程中儲存的剩餘張數與統計（不會重設）。`
+                : `復原詞表「${item.displayName}」？\n此筆為舊版歷程，將從頭開始練習。`;
+            if (!confirm(msg)) return;
             closeMenu();
-            applyImportedDeck(list, item.displayName);
+
+            baselineWords = base;
+            initialTotal = baselineWords.length;
+
+            if (hasSnap) {
+                wordsList = sanitizeWordsListFromBaseline(item.wordsList, baselineWords);
+                stats.again = Number(item.stats.again) || 0;
+                stats.hard = Number(item.stats.hard) || 0;
+                stats.good = Number(item.stats.good) || 0;
+                stats.easy = Number(item.stats.easy) || 0;
+            } else {
+                wordsList = baselineWords.slice();
+                stats.again = stats.hard = stats.good = stats.easy = 0;
+            }
+
+            currentDeckDisplayName = item.displayName;
+            isFlipped = false;
+            resetFlip();
+            updateStatsUi();
+            persistState();
+            updateDeckTitleUi();
+            renderCard();
         }
 
         function updateStatsUi() {
@@ -1396,7 +1470,6 @@
             isFlipped = false;
             resetFlip();
             updateStatsUi();
-            saveDeckToHistory(displayName || currentDeckDisplayName || '詞表', baselineWords);
             persistState();
             updateDeckTitleUi();
             renderCard();
