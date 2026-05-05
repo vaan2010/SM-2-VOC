@@ -6,13 +6,26 @@
     <title>單字學習卡</title>
     <meta name="theme-color" content="#f8fafc">
     <meta name="apple-mobile-web-app-title" content="單字學習卡">
-    <link rel="icon" type="image/png" href="icon.png">
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="manifest" href="manifest.webmanifest">
-    <!-- 引入 Tailwind CSS 進行快速切版 -->
+    <!-- 內嵌 SVG 圖示，避免 file:// 開檔時 icon.png 404 -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='15' font-weight='700' fill='%23fff' font-family='system-ui,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='15' font-weight='700' fill='%23fff' font-family='system-ui,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+    <!-- file:// 無法載入 manifest（CORS origin null）；僅在 http/https 註冊 PWA -->
+    <script>
+    (function () {
+        if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+        var link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = 'manifest.webmanifest';
+        document.head.appendChild(link);
+    })();
+    </script>
+    <!-- 引入 Tailwind CSS 進行快速切版（正式環境請改 CLI/PostCSS 建置，見 https://tailwindcss.com/docs/installation） -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Phosphor Icons 作為圖示 -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Firebase（compat，與主流程非 module 腳本共用）-->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         /* 禁止選取字樣、長按選單；縮放主要由 viewport + 下方 JS 輔助 */
         html {
@@ -188,7 +201,10 @@
                     <i class="ph ph-list text-2xl sm:text-[1.75rem]"></i>
                 </button>
             </div>
-            <span id="deckTitleText" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1 invisible" title=""></span>
+            <div id="deckTitleBlock" class="min-w-0 flex max-w-full flex-col items-center justify-center px-1 leading-snug invisible" title="">
+                <span id="deckTitleLine1" class="hidden max-w-full truncate text-center text-[10px] sm:text-xs font-medium text-slate-500"></span>
+                <span id="deckTitleLine2" class="max-w-full truncate text-center text-sm sm:text-base font-semibold text-slate-700"></span>
+            </div>
             <div class="app-topbar-side app-topbar-side--end">
                 <button type="button" id="quizOpenBtn" class="shrink-0 p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400" aria-label="聽音拼字測驗" title="聽音拼字測驗">
                     <i class="ph ph-exam text-2xl sm:text-[1.75rem]" aria-hidden="true"></i>
@@ -196,16 +212,12 @@
             </div>
         </div>
         <input type="file" id="jsonFileInput" accept=".json,application/json" multiple class="hidden" aria-hidden="true">
-        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-[min(100vw-2rem,16rem)] max-h-[min(70vh,24rem)] overflow-y-auto touch-pan-y rounded-xl border border-slate-200 bg-white py-1 shadow-xl" role="menu" aria-label="選單">
-            <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex w-full px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 cursor-pointer border-b border-slate-100">
-                匯入 JSON 詞表（可複選多檔）…
+        <nav id="appMenuPanel" class="hidden absolute left-0 top-full mt-1 z-[60] w-max max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-white py-1 shadow-xl overflow-hidden" role="menu" aria-label="選單">
+            <label for="jsonFileInput" id="menuImportLabel" role="menuitem" class="flex cursor-pointer items-center whitespace-nowrap px-4 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 border-b border-slate-100">
+                匯入自選
             </label>
-            <div id="deckHistorySection" class="hidden border-b border-slate-100">
-                <div class="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">最近匯入（點選復原）</div>
-                <div id="deckHistoryList" class="max-h-40 overflow-y-auto touch-pan-y no-scrollbar"></div>
-            </div>
-            <button type="button" id="menuResetBtn" role="menuitem" class="w-full px-4 py-3 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 active:bg-rose-100">
-                重置所有進度
+            <button type="button" id="menuFirebaseChapterBtn" role="menuitem" class="block whitespace-nowrap px-4 py-3 text-left text-sm font-medium text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100 w-full">
+                章節選擇
             </button>
         </nav>
     </div>
@@ -217,7 +229,7 @@
             <div class="app-bar-strip min-h-[2.75rem] py-1">
                 <div class="app-topbar-grid">
                     <div class="app-topbar-side app-topbar-side--start">
-                        <button type="button" id="quizCloseBtn" class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 text-sm sm:text-base font-semibold leading-none">關閉</button>
+                        <button type="button" id="quizCloseBtn" class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 text-sm sm:text-base font-semibold leading-none" aria-label="返回">返回</button>
                     </div>
                     <span id="quizOverlayTitle" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1">聽音拼字</span>
                     <div class="app-topbar-side app-topbar-side--end">
@@ -277,14 +289,58 @@
         </div>
     </div>
 
+    <!-- 章節（Firebase DAY）選擇 -->
+    <div id="dayPickOverlay" class="hidden fixed inset-0 z-[65] flex flex-col bg-slate-100" aria-modal="true" role="dialog" aria-labelledby="dayPickTitle">
+        <div class="shrink-0 w-full border-b border-slate-200 bg-white shadow-sm pt-[max(0.5rem,env(safe-area-inset-top,0px))]">
+            <div class="app-bar-strip min-h-[2.75rem] py-1">
+                <div class="app-topbar-grid">
+                    <div class="app-topbar-side app-topbar-side--start">
+                        <button type="button" id="dayPickBackBtn" class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-600 hover:bg-slate-200/90 active:bg-slate-300/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 text-sm sm:text-base font-semibold leading-none" aria-label="返回">返回</button>
+                    </div>
+                    <span id="dayPickTitle" class="min-w-0 text-center text-sm sm:text-base font-semibold text-slate-700 truncate px-1">章節選擇</span>
+                    <div class="app-topbar-side app-topbar-side--end"></div>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y px-4 py-6 w-full max-w-md mx-auto flex flex-col">
+            <div id="dayPickSourcePanel" class="flex flex-col gap-4 w-full">
+                <button type="button" id="dayPickCustomDeckBtn" class="w-full py-5 px-4 rounded-2xl border-2 border-slate-200 bg-white shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation flex flex-row items-center justify-start">
+                    <span class="block text-base font-bold text-slate-900 text-left">自選單字</span>
+                </button>
+                <!-- Firebase 根下每個詞表資料夾動態成一顆按鈕（書名鍵為資料庫實際名稱） -->
+                <div id="dayPickFirebaseBooksHost" class="flex flex-col gap-3 w-full">
+                    <p id="dayPickFirebaseBooksStatus" class="hidden text-xs text-center min-h-[1.25em] text-slate-500"></p>
+                    <div id="dayPickFirebaseCategoryList" class="flex flex-col gap-3 w-full"></div>
+                </div>
+            </div>
+            <div id="dayPickDayPanel" class="hidden flex flex-col w-full flex-1 min-h-0">
+                <p id="dayPickStatus" class="text-xs text-center text-slate-500 mb-6 min-h-[1.25em] shrink-0"></p>
+                <div id="dayPickGrid" class="grid grid-cols-2 gap-3 sm:gap-4 pb-4"></div>
+            </div>
+            <div id="dayPickCustomPanel" class="hidden flex flex-col w-full flex-1 min-h-0">
+                <p id="dayPickCustomHint" class="text-xs text-center text-slate-500 mb-6 min-h-[1.25em] shrink-0"></p>
+                <div id="dayPickCustomGrid" class="grid grid-cols-2 gap-3 sm:gap-4 pb-4"></div>
+                <button type="button" id="dayPickCustomImportBtn" class="shrink-0 w-full mt-2 py-3.5 px-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200 touch-manipulation">
+                    匯入自選單字
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 卡片：依螢幕剩餘高度自適應 -->
     <div class="card-stage perspective">
         <div id="cardInner" class="relative w-full h-full min-h-0 shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
 
-            <div id="deckEmptyPrompt" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center">
+            <div id="welcomeScreen" class="absolute inset-0 z-[42] flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 px-8 py-10 text-center">
+                <span class="text-4xl sm:text-5xl mb-4 select-none" aria-hidden="true">👋</span>
+                <h2 class="text-xl sm:text-2xl font-bold text-indigo-900 mb-2 shrink-0">歡迎</h2>
+                <p class="text-sm text-slate-600 leading-relaxed max-w-[19rem]">請點左上角選單，選擇「章節選擇」後挑選詞表開始學習。</p>
+            </div>
+
+            <div id="deckEmptyPrompt" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center">
                 <i class="ph ph-folder-open text-5xl sm:text-6xl text-slate-300 mb-4 shrink-0" aria-hidden="true"></i>
-                <h2 class="text-lg sm:text-xl font-bold text-slate-700 shrink-0">尚無單字詞表</h2>
-                <p class="text-sm text-slate-500 mt-2 max-w-[20rem] leading-relaxed shrink-0">請點左上角選單中的「匯入 JSON 詞表」載入檔案後即可開始練習；可一次選取多個 JSON，會合併成同一副牌。</p>
+                <h2 class="text-lg sm:text-xl font-bold text-slate-700 shrink-0">目前沒有載入詞表</h2>
+                <p class="text-sm text-slate-500 mt-2 max-w-[20rem] leading-relaxed shrink-0">請由「章節選擇」挑選詞表或使用選單「匯入自選」匯入 JSON。</p>
             </div>
 
             <div id="deckCompleteScreen" class="hidden absolute inset-0 z-40 bg-white rounded-2xl flex flex-col min-h-0 overflow-hidden border border-slate-100">
@@ -369,7 +425,7 @@
     </div>
 
     <!-- 底部統計：固定高度列，不與卡片搶 flex -->
-    <footer class="shrink-0 w-full flex justify-around items-center pt-2 pb-1 gap-1">
+    <footer id="appStatsFooter" class="shrink-0 w-full flex justify-around items-center pt-2 pb-1 gap-1 transition-opacity duration-200">
         <div class="flex flex-col items-center min-w-0">
             <span class="text-[9px] sm:text-[10px] text-rose-500 font-bold uppercase tracking-wider">Again</span>
             <span id="statAgain" class="text-slate-600 font-medium text-sm sm:text-base tabular-nums">0</span>
@@ -396,6 +452,943 @@
         const STORAGE_KEY = 'toeic-flashcard-v2';
         const DECK_HISTORY_KEY = 'toeic-deck-history-v1';
         const DECK_HISTORY_MAX = 15;
+        /** 雲端 DAY 專用：不受「最近匯入」筆數上限影響，重新從 Firebase 進入同一天時還原進度 */
+        const CLOUD_DAY_PROGRESS_KEY = 'toeic-cloud-day-progress-v1';
+        /** Firebase 「書」層級預期鍵名；實際標題仍以資料庫鍵為準（顯示在頂題） */
+        const FIREBASE_TOEIC_BOOK_DISPLAY_NAME = '新制多益 TOEIC 單字大全';
+        /** 匯入自選詞表頂列第一行（與章節選單「自選單字」一致） */
+        const CUSTOM_DECK_BAR_LINE = '自選單字';
+
+        function loadCloudDayProgressMap() {
+            try {
+                const raw = localStorage.getItem(CLOUD_DAY_PROGRESS_KEY);
+                if (!raw) return {};
+                const o = JSON.parse(raw);
+                return o && typeof o === 'object' ? o : {};
+            } catch {
+                return {};
+            }
+        }
+
+        function getCloudDayProgress(displayName) {
+            const name = String(displayName || '').trim();
+            if (!name) return null;
+            const map = loadCloudDayProgressMap();
+            const snap = map[name];
+            if (!snap || typeof snap !== 'object') return null;
+            if (!Array.isArray(snap.baselineWords) || !Array.isArray(snap.wordsList)) return null;
+            return snap;
+        }
+
+        /** 將目前為「雲端 DAY」的牌組進度另行存一份（與 STORAGE_KEY 併存） */
+        function saveCloudDayProgressSnapshot(displayName, baseline, wl, statsObj) {
+            const name = String(displayName || '').trim();
+            if (!name) return;
+            try {
+                const map = loadCloudDayProgressMap();
+                map[name] = {
+                    baselineWords: baseline.map(normalizeEntry).filter((w) => w.keyword),
+                    wordsList: wl.map(normalizeEntry).filter((w) => w.keyword),
+                    stats: {
+                        again: statsObj.again,
+                        hard: statsObj.hard,
+                        good: statsObj.good,
+                        easy: statsObj.easy,
+                    },
+                    savedAt: Date.now(),
+                };
+                localStorage.setItem(CLOUD_DAY_PROGRESS_KEY, JSON.stringify(map));
+            } catch (e) {
+                console.warn('儲存雲端 DAY 進度失敗', e);
+            }
+        }
+
+        /** 與 test.html 相同專案的 Realtime Database */
+        const firebaseConfig = {
+            apiKey: 'AIzaSyBaZzqhJVgEANxatAvrK9j-ceiRXRsGr00',
+            authDomain: 'my-data-test-41566.firebaseapp.com',
+            databaseURL: 'https://my-data-test-41566-default-rtdb.firebaseio.com',
+            projectId: 'my-data-test-41566',
+            storageBucket: 'my-data-test-41566.firebasestorage.app',
+            messagingSenderId: '560668185033',
+            appId: '1:560668185033:web:72c8b4b9627fa33087d818',
+        };
+
+        /** 離開選單歡迎 / 進入詞卡區 */
+        function enterStudyBoard() {
+            studyBoardVisible = true;
+            refreshStudyChrome();
+        }
+
+        function leaveStudyBoard() {
+            studyBoardVisible = false;
+            refreshStudyChrome();
+        }
+
+        function refreshStudyChrome() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const footerEl = document.getElementById('appStatsFooter');
+            const quizBtn = document.getElementById('quizOpenBtn');
+            const deckTitleBlock = document.getElementById('deckTitleBlock');
+            const deckTitleLine1 = document.getElementById('deckTitleLine1');
+            const deckTitleLine2 = document.getElementById('deckTitleLine2');
+            const flipRoot = document.getElementById('flipCardRoot');
+            const emptyEl = document.getElementById('deckEmptyPrompt');
+            const completeEl = document.getElementById('deckCompleteScreen');
+
+            if (!studyBoardVisible) {
+                if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+                if (footerEl) footerEl.classList.add('opacity-35', 'pointer-events-none');
+                if (quizBtn) {
+                    quizBtn.classList.add('opacity-35', 'pointer-events-none');
+                    quizBtn.disabled = true;
+                    quizBtn.setAttribute('aria-disabled', 'true');
+                }
+                if (deckTitleBlock) {
+                    deckTitleBlock.classList.add('invisible');
+                    deckTitleBlock.removeAttribute('title');
+                }
+                if (deckTitleLine1) {
+                    deckTitleLine1.textContent = '';
+                    deckTitleLine1.classList.add('hidden');
+                }
+                if (deckTitleLine2) deckTitleLine2.textContent = '';
+                document.title = '單字學習卡';
+                resetFlip();
+                if (flipRoot) flipRoot.classList.add('hidden');
+                if (emptyEl) emptyEl.classList.add('hidden');
+                if (completeEl) completeEl.classList.add('hidden');
+                /** 首頁僅展示 0000；實際紀錄仍保留於 stats／localStorage，待章節選擇或匯入後再顯示 */
+                resetStatsFooterDisplay();
+                return;
+            }
+
+            if (welcomeScreen) welcomeScreen.classList.add('hidden');
+            if (footerEl) footerEl.classList.remove('opacity-35', 'pointer-events-none');
+            if (quizBtn) {
+                quizBtn.classList.remove('opacity-35', 'pointer-events-none');
+                quizBtn.disabled = baselineWords.length === 0;
+                if (quizBtn.disabled) quizBtn.setAttribute('aria-disabled', 'true');
+                else quizBtn.removeAttribute('aria-disabled');
+            }
+            updateDeckTitleUi();
+            updateStatsUi();
+            renderCard();
+        }
+
+        function goDayPickBack() {
+            if (!isDayPickOpen()) return;
+            const custom = document.getElementById('dayPickCustomPanel');
+            const day = document.getElementById('dayPickDayPanel');
+            if (custom && !custom.classList.contains('hidden')) {
+                prepareDayPickSourceStep();
+                loadFirebaseChapterBooksLanding();
+                return;
+            }
+            if (day && !day.classList.contains('hidden')) {
+                restoreDayPickFirebaseLanding();
+                return;
+            }
+            closeDayPickOverlay();
+        }
+
+        function ensureFirebaseApp() {
+            if (typeof firebase === 'undefined' || !firebase.initializeApp) return null;
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                return firebase.database();
+            } catch (err) {
+                console.warn(err);
+                return null;
+            }
+        }
+
+        /**
+         * 判斷單一節點是否為「DAY」詞表葉節點（含 extract.results 或 extracts[]）。
+         */
+        function isFirebaseDayChapterLeafNode(v) {
+            if (!v || typeof v !== 'object') return false;
+            if (v.extract && Array.isArray(v.extract.results)) return true;
+            if (Array.isArray(v.extracts)) return true;
+            return false;
+        }
+
+        /**
+         * 掃描根節點底下「分類」鍵名：其子節點中至少有一個為 DAY 葉節點（兩層結構）。
+         */
+        function discoverFirebaseCategoryKeys(root) {
+            if (!root || typeof root !== 'object' || Array.isArray(root)) return [];
+            return Object.keys(root)
+                .filter((k) => {
+                    const n = root[k];
+                    if (!n || typeof n !== 'object' || Array.isArray(n)) return false;
+                    return Object.keys(n).some((ck) => isFirebaseDayChapterLeafNode(n[ck]));
+                })
+                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        }
+
+        /**
+         * 雲端進度在 localStorage 的鍵：有分類時為「分類名 · DAY1」，扁平根則同舊版「DAY1」。
+         */
+        function firebaseCloudProgressStorageKey(firebaseCategoryPrefix, dayKey) {
+            const leaf = stripJsonExtension(String(dayKey || '').trim());
+            const cat = String(firebaseCategoryPrefix == null ? '' : firebaseCategoryPrefix).trim();
+            if (cat) return cat + ' · ' + leaf;
+            return leaf;
+        }
+
+        /**
+         * 掃描根節點底下「像 test.html 的 DAY」：須含 extract.results 陣列。
+         */
+        function discoverFirebaseDayKeys(allData) {
+            if (!allData || typeof allData !== 'object') return [];
+            const keys = Object.keys(allData).filter((k) => {
+                const v = allData[k];
+                return isFirebaseDayChapterLeafNode(v);
+            });
+            keys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+            return keys;
+        }
+
+        /**
+         * 規劃 Firebase 根資料如何進入章節選單：多個詞表資料夾時 `{ A:{DAY…}, B:{DAY…} }` 會得到 multi；僅一格時自動進入該詞表 DAY 列表。
+         * @returns {{ kind:'empty' } | { kind:'flat', subtree:object, rootSnap:object } | { kind:'single', key:string, subtree:object, rootSnap:object } | { kind:'multi', categories: Array<{ key:string, subtree:object }>, rootSnap:object }}
+         */
+        function planFirebaseRootLayout(rootVal) {
+            if (!rootVal || typeof rootVal !== 'object' || Array.isArray(rootVal)) {
+                return { kind: 'empty' };
+            }
+            const cats = discoverFirebaseCategoryKeys(rootVal);
+            if (cats.length > 1) {
+                let categories = cats.map((key) => ({ key: String(key), subtree: rootVal[key] })).filter(
+                    (item) =>
+                        item.subtree &&
+                        typeof item.subtree === 'object' &&
+                        discoverFirebaseDayKeys(item.subtree).length > 0
+                );
+                if (!categories.length) return { kind: 'empty' };
+                if (categories.length === 1) {
+                    const only = categories[0];
+                    return {
+                        kind: 'single',
+                        key: only.key,
+                        subtree: only.subtree,
+                        rootSnap: rootVal,
+                    };
+                }
+                return { kind: 'multi', categories, rootSnap: rootVal };
+            }
+            if (cats.length === 1) {
+                const key = String(cats[0]);
+                const subtree = rootVal[key];
+                if (
+                    !subtree ||
+                    typeof subtree !== 'object' ||
+                    !discoverFirebaseDayKeys(subtree).length
+                ) {
+                    return { kind: 'empty' };
+                }
+                return { kind: 'single', key, subtree, rootSnap: rootVal };
+            }
+            if (discoverFirebaseDayKeys(rootVal).length > 0) {
+                return { kind: 'flat', subtree: rootVal, rootSnap: rootVal };
+            }
+            return { kind: 'empty' };
+        }
+
+        function appendFirebaseCategoryBookButton(container, label, dayCount, onClick) {
+            if (!container) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className =
+                'w-full py-5 px-4 rounded-2xl border-2 border-indigo-100 bg-white shadow-sm hover:bg-indigo-50 active:bg-indigo-100 transition-colors touch-manipulation flex flex-row items-center justify-between gap-3 text-left';
+            const wrap = document.createElement('span');
+            wrap.className = 'flex flex-1 min-w-0 flex-col gap-0.5 pr-1';
+            const titleSpan = document.createElement('span');
+            titleSpan.className =
+                'break-words text-base font-bold leading-snug text-indigo-900';
+            titleSpan.textContent = label;
+            wrap.appendChild(titleSpan);
+            if (typeof dayCount === 'number' && dayCount >= 0) {
+                const meta = document.createElement('span');
+                meta.className = 'text-xs font-medium text-indigo-500/90';
+                meta.textContent = dayCount + ' 個單元';
+                wrap.appendChild(meta);
+            }
+            btn.appendChild(wrap);
+            const img = document.createElement('img');
+            img.src = 'toeic.png';
+            img.alt = '';
+            img.decoding = 'async';
+            img.className =
+                'pointer-events-none h-12 w-auto max-h-[3.25rem] max-w-[42%] shrink-0 select-none object-contain object-right sm:h-14';
+            btn.appendChild(img);
+            btn.addEventListener('click', onClick);
+            container.appendChild(btn);
+        }
+
+        /** 將根資料畫成章節選單上的「詞表來源」按鈕列（不依賴單一本書鍵名） */
+        function paintFirebaseLandingFromRootVal(rootVal, listEl, statusEl) {
+            if (!listEl) return;
+
+            listEl.innerHTML = '';
+            if (statusEl) {
+                statusEl.classList.remove('text-rose-600');
+                statusEl.classList.add('text-slate-500');
+            }
+
+            if (!rootVal || typeof rootVal !== 'object') {
+                dayPickFirebaseSnapshot = null;
+                if (statusEl) {
+                    statusEl.textContent = '目前沒有任何雲端詞庫資料';
+                    statusEl.classList.remove('hidden');
+                }
+                return;
+            }
+
+            dayPickFirebaseSnapshot = rootVal;
+            const plan = planFirebaseRootLayout(rootVal);
+
+            if (plan.kind === 'empty') {
+                if (statusEl) {
+                    statusEl.textContent =
+                        '目前沒有可用的雲端章節（根節點需為 DAY 詞表或可含 DAY 的子資料夾）';
+                    statusEl.classList.remove('hidden');
+                }
+                return;
+            }
+
+            if (statusEl) {
+                statusEl.textContent = '';
+                statusEl.classList.add('hidden');
+            }
+
+            if (plan.kind === 'multi') {
+                plan.categories.forEach(({ key, subtree }) => {
+                    const n = discoverFirebaseDayKeys(subtree).length;
+                    appendFirebaseCategoryBookButton(listEl, key, n, () =>
+                        enterFirebaseDayPickPanel(key, subtree, key)
+                    );
+                });
+                return;
+            }
+
+            const flatTitle = FIREBASE_TOEIC_BOOK_DISPLAY_NAME;
+
+            if (plan.kind === 'flat') {
+                const nFlat = discoverFirebaseDayKeys(plan.subtree).length;
+                appendFirebaseCategoryBookButton(listEl, flatTitle, nFlat, () =>
+                    enterFirebaseDayPickPanel('', plan.subtree, flatTitle)
+                );
+                return;
+            }
+
+            if (plan.kind === 'single') {
+                const nS = discoverFirebaseDayKeys(plan.subtree).length;
+                appendFirebaseCategoryBookButton(listEl, plan.key, nS, () =>
+                    enterFirebaseDayPickPanel(plan.key, plan.subtree, plan.key)
+                );
+            }
+        }
+
+        /** 從 DAY 選單返回：回到詞表來源列表（沿用已快取的快照，不再重複連線）。 */
+        function restoreDayPickFirebaseLanding() {
+            const sourcePanel = document.getElementById('dayPickSourcePanel');
+            const dayPanel = document.getElementById('dayPickDayPanel');
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            const title = document.getElementById('dayPickTitle');
+            const grid = document.getElementById('dayPickGrid');
+            const status = document.getElementById('dayPickStatus');
+            const listEl = document.getElementById('dayPickFirebaseCategoryList');
+            const booksStatusEl = document.getElementById('dayPickFirebaseBooksStatus');
+
+            if (customPanel) customPanel.classList.add('hidden');
+            if (dayPanel) dayPanel.classList.add('hidden');
+            if (sourcePanel) sourcePanel.classList.remove('hidden');
+            if (grid) grid.innerHTML = '';
+            if (status) {
+                status.textContent = '';
+                status.classList.remove('text-rose-600');
+                status.classList.add('text-slate-500');
+            }
+            if (title) title.textContent = '章節選擇';
+            dayPickFirebaseCategoryKey = undefined;
+
+            if (!dayPickFirebaseSnapshot) {
+                if (booksStatusEl) {
+                    booksStatusEl.textContent = '詞庫未載入，請關閉後再開啟「章節選擇」';
+                    booksStatusEl.classList.remove('hidden');
+                    booksStatusEl.classList.remove('text-rose-600');
+                    booksStatusEl.classList.add('text-slate-500');
+                }
+                if (listEl) listEl.innerHTML = '';
+                return;
+            }
+
+            paintFirebaseLandingFromRootVal(dayPickFirebaseSnapshot, listEl, booksStatusEl);
+        }
+
+        /** 主畫面載入後即抓取詞庫目錄快照，使用者開「章節選擇」時多半是零等待。 */
+        function prefetchFirebaseChapterCatalog() {
+            const db = ensureFirebaseApp();
+            if (!db) return;
+            db.ref('/').once(
+                'value',
+                (snapshot) => {
+                    const val = snapshot.val();
+                    dayPickFirebaseSnapshot =
+                        val && typeof val === 'object' ? val : null;
+                },
+                () => {}
+            );
+        }
+
+        /** 已有快取時在背景再拉一次並更新開啟中的章節介面（不擋使用者操作）。 */
+        function refreshFirebaseChapterCatalogQuiet() {
+            const db = ensureFirebaseApp();
+            if (!db) return;
+            db.ref('/').once(
+                'value',
+                (snapshot) => {
+                    const val = snapshot.val();
+                    dayPickFirebaseSnapshot =
+                        val && typeof val === 'object' ? val : null;
+                    if (!isDayPickOpen()) return;
+
+                    const sourcePanel = document.getElementById('dayPickSourcePanel');
+                    const dayPanel = document.getElementById('dayPickDayPanel');
+                    const listEl = document.getElementById('dayPickFirebaseCategoryList');
+                    const booksStatusEl = document.getElementById('dayPickFirebaseBooksStatus');
+
+                    if (
+                        sourcePanel &&
+                        !sourcePanel.classList.contains('hidden') &&
+                        listEl
+                    ) {
+                        paintFirebaseLandingFromRootVal(
+                            dayPickFirebaseSnapshot,
+                            listEl,
+                            booksStatusEl
+                        );
+                    }
+
+                    if (dayPanel && !dayPanel.classList.contains('hidden')) {
+                        refreshFirebaseDayPickerGrid();
+                    }
+                },
+                () => {}
+            );
+        }
+
+        /** 開啟章節選單：若已有預載快照則立即畫入，並在背景靜默更新一次。否則顯示連線中並抓取。 */
+        function loadFirebaseChapterBooksLanding() {
+            const listEl = document.getElementById('dayPickFirebaseCategoryList');
+            const statusEl = document.getElementById('dayPickFirebaseBooksStatus');
+            if (!listEl || !statusEl) return;
+
+            const cached =
+                dayPickFirebaseSnapshot &&
+                typeof dayPickFirebaseSnapshot === 'object'
+                    ? dayPickFirebaseSnapshot
+                    : null;
+
+            if (cached) {
+                paintFirebaseLandingFromRootVal(cached, listEl, statusEl);
+                refreshFirebaseChapterCatalogQuiet();
+                return;
+            }
+
+            listEl.innerHTML = '';
+            statusEl.classList.remove('hidden', 'text-rose-600');
+            statusEl.classList.add('text-slate-500');
+            statusEl.textContent = '詞庫連線中…';
+
+            const db = ensureFirebaseApp();
+            if (!db) {
+                statusEl.classList.remove('text-slate-500');
+                statusEl.classList.add('text-rose-600');
+                statusEl.textContent = '無法初始化 Firebase（腳本未載入或被阻擋）。';
+                return;
+            }
+
+            db.ref('/').once(
+                'value',
+                (snapshot) => {
+                    const val = snapshot.val();
+                    paintFirebaseLandingFromRootVal(val, listEl, statusEl);
+                },
+                (error) => {
+                    statusEl.classList.remove('text-slate-500');
+                    statusEl.classList.add('text-rose-600');
+                    statusEl.textContent =
+                        '連線失敗：' +
+                        (error && error.message ? error.message : String(error));
+                    statusEl.classList.remove('hidden');
+                }
+            );
+        }
+
+        /** 進入某一詞表底下的 DAY 網格；`categoryKey` 空字串表示根層直接為 DAY。 */
+        function enterFirebaseDayPickPanel(categoryKey, subtree, titleText) {
+            const sourcePanel = document.getElementById('dayPickSourcePanel');
+            const dayPanel = document.getElementById('dayPickDayPanel');
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            const title = document.getElementById('dayPickTitle');
+            const status = document.getElementById('dayPickStatus');
+            const grid = document.getElementById('dayPickGrid');
+            if (!sourcePanel || !dayPanel || !status || !grid || !title) return;
+            if (customPanel) customPanel.classList.add('hidden');
+
+            sourcePanel.classList.add('hidden');
+            dayPanel.classList.remove('hidden');
+
+            title.textContent = titleText || '章節';
+            grid.innerHTML = '';
+
+            status.className = 'text-xs text-center text-slate-500 mb-6 min-h-[1.25em] shrink-0';
+            status.classList.remove('text-rose-600');
+            status.classList.add('text-slate-500');
+
+            dayPickFirebaseCategoryKey =
+                categoryKey === undefined || categoryKey === null ? '' : String(categoryKey);
+
+            renderDayPickGrid(subtree, dayPickFirebaseCategoryKey || '');
+        }
+
+        function closeDayPickOverlay() {
+            const ov = document.getElementById('dayPickOverlay');
+            if (ov) ov.classList.add('hidden');
+            prepareDayPickSourceStep();
+        }
+
+        /** 停留在章節選擇視窗時回到第一層（自選／大全） */
+        function prepareDayPickSourceStep() {
+            const sourcePanel = document.getElementById('dayPickSourcePanel');
+            const dayPanel = document.getElementById('dayPickDayPanel');
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            const title = document.getElementById('dayPickTitle');
+            const grid = document.getElementById('dayPickGrid');
+            const status = document.getElementById('dayPickStatus');
+            const customGrid = document.getElementById('dayPickCustomGrid');
+            const customHint = document.getElementById('dayPickCustomHint');
+            if (sourcePanel) sourcePanel.classList.remove('hidden');
+            if (dayPanel) dayPanel.classList.add('hidden');
+            if (customPanel) customPanel.classList.add('hidden');
+            if (grid) grid.innerHTML = '';
+            if (customGrid) customGrid.innerHTML = '';
+            if (customHint) customHint.textContent = '';
+            if (status) {
+                status.textContent = '';
+                status.classList.remove('text-rose-600');
+                status.classList.add('text-slate-500');
+            }
+            if (title) title.textContent = '章節選擇';
+            const firebaseList = document.getElementById('dayPickFirebaseCategoryList');
+            const firebaseBooksStatus = document.getElementById('dayPickFirebaseBooksStatus');
+            if (firebaseList) firebaseList.innerHTML = '';
+            if (firebaseBooksStatus) {
+                firebaseBooksStatus.textContent = '';
+                firebaseBooksStatus.classList.add('hidden');
+                firebaseBooksStatus.classList.remove('text-rose-600');
+                firebaseBooksStatus.classList.add('text-slate-500');
+            }
+            dayPickFirebaseCategoryKey = undefined;
+        }
+
+        function isDayPickOpen() {
+            const el = document.getElementById('dayPickOverlay');
+            return el && !el.classList.contains('hidden');
+        }
+
+        function openDayChapterPicker() {
+            closeMenu();
+            const ov = document.getElementById('dayPickOverlay');
+            if (!ov) return;
+            prepareDayPickSourceStep();
+            ov.classList.remove('hidden');
+            loadFirebaseChapterBooksLanding();
+        }
+
+        function openCustomWordListPanel() {
+            const sourcePanel = document.getElementById('dayPickSourcePanel');
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            const dayPanel = document.getElementById('dayPickDayPanel');
+            const title = document.getElementById('dayPickTitle');
+            const statusFirebase = document.getElementById('dayPickStatus');
+            if (!sourcePanel || !customPanel || !dayPanel || !title) return;
+            dayPanel.classList.add('hidden');
+            sourcePanel.classList.add('hidden');
+            customPanel.classList.remove('hidden');
+            title.textContent = '自選單字';
+            if (statusFirebase) {
+                statusFirebase.textContent = '';
+                statusFirebase.classList.remove('text-rose-600');
+                statusFirebase.classList.add('text-slate-500');
+            }
+            renderCustomDeckPickGrid();
+        }
+
+        /** 繪製自選詞表卡片（版型與新制多益雲端章節 `renderDayPickGrid` 一致） */
+        function renderCustomDeckPickGrid() {
+            const grid = document.getElementById('dayPickCustomGrid');
+            const hint = document.getElementById('dayPickCustomHint');
+            if (!grid || !hint) return;
+
+            hint.classList.remove('text-rose-600');
+            hint.classList.add('text-slate-500');
+
+            const list = getCustomDeckListForPicker();
+            grid.innerHTML = '';
+            if (!list.length) {
+                hint.textContent = '目前沒有任何單字';
+                return;
+            }
+            hint.textContent = '共 ' + list.length + ' 個詞表，請點選開始';
+
+            list.forEach((item) => {
+                const info = getImportDeckCardInfo(item);
+                const titleText = stripJsonExtension(item.displayName);
+
+                const wrap = document.createElement('div');
+                wrap.className =
+                    'relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-100/80 outline-none transition-shadow transition-colors hover:border-indigo-200/90 hover:bg-indigo-50/80 hover:shadow-md active:bg-indigo-100/70 touch-manipulation focus-visible:ring-2 focus-visible:ring-indigo-400';
+                wrap.tabIndex = 0;
+                wrap.setAttribute('role', 'button');
+
+                wrap.addEventListener('click', (e) => {
+                    const n = e.target;
+                    const fromCtl =
+                        n instanceof Element
+                            ? n.closest('.chapter-reset-btn') || n.closest('.custom-deck-delete-btn')
+                            : n &&
+                              n.parentElement &&
+                              (n.parentElement.closest('.chapter-reset-btn') ||
+                                  n.parentElement.closest('.custom-deck-delete-btn'));
+                    if (fromCtl) return;
+                    applyImportDeckFromPicker(item);
+                });
+                wrap.addEventListener('keydown', (e) => {
+                    const n = e.target;
+                    const fromCtl =
+                        n instanceof Element
+                            ? n.closest('.chapter-reset-btn') || n.closest('.custom-deck-delete-btn')
+                            : n &&
+                              n.parentElement &&
+                              (n.parentElement.closest('.chapter-reset-btn') ||
+                                  n.parentElement.closest('.custom-deck-delete-btn'));
+                    if (fromCtl) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applyImportDeckFromPicker(item);
+                    }
+                });
+
+                const headerRow = document.createElement('div');
+                headerRow.className =
+                    'flex shrink-0 items-center justify-between gap-2 px-3.5 pb-1 pt-3.5';
+
+                const titleEl = document.createElement('span');
+                titleEl.className =
+                    'min-w-0 flex-1 truncate text-base font-bold leading-tight text-indigo-900';
+                titleEl.textContent = titleText;
+
+                const resetBtn = document.createElement('button');
+                resetBtn.type = 'button';
+                resetBtn.className =
+                    'chapter-reset-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
+                resetBtn.setAttribute('aria-label', '重置「' + titleText + '」學習進度');
+                resetBtn.innerHTML =
+                    '<i class="ph ph-arrow-counter-clockwise block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
+                resetBtn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    resetImportDeckChapter(item.displayName);
+                });
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className =
+                    'custom-deck-delete-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
+                delBtn.setAttribute('aria-label', '從列表刪除「' + titleText + '」');
+                delBtn.innerHTML =
+                    '<i class="ph ph-trash block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
+                delBtn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    removeDeckFromHistory(item.displayName);
+                });
+
+                const actions = document.createElement('div');
+                actions.className = 'flex shrink-0 items-center gap-0.5';
+                actions.appendChild(resetBtn);
+                actions.appendChild(delBtn);
+
+                headerRow.appendChild(titleEl);
+                headerRow.appendChild(actions);
+
+                const lastTitle = escapeHtml(info.lastLine || '');
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'flex min-h-[5.5rem] flex-1 flex-col gap-2 px-3.5 pb-3.5 pt-2';
+                bodyEl.innerHTML =
+                    '<div class="flex min-w-0 flex-col gap-0.5 text-left text-[11px]">' +
+                    '<span class="text-slate-500">學習進度</span>' +
+                    '<span class="font-semibold tabular-nums text-slate-700">' +
+                    escapeHtml(info.progressLine) +
+                    ' · ' +
+                    info.pct +
+                    '%</span></div>' +
+                    '<div class="h-2 w-full shrink-0 overflow-hidden rounded-full bg-slate-200">' +
+                    '<div class="h-full rounded-full bg-indigo-500 transition-all duration-300" style="width:' +
+                    info.pct +
+                    '%"></div></div>' +
+                    '<p class="mt-auto min-h-[1.375rem] truncate pt-0.5 text-sm font-medium leading-snug text-slate-800" title="' +
+                    lastTitle +
+                    '">' +
+                    escapeHtml(info.lastLine) +
+                    '</p>';
+
+                wrap.appendChild(headerRow);
+                wrap.appendChild(bodyEl);
+                grid.appendChild(wrap);
+            });
+        }
+
+        /**
+         * 雲端進度鍵對應的確認／無障礙用短名（分隔符為 —）。
+         */
+        function firebaseCloudProgressStorageLabel(cat, dayKey) {
+            const leaf = stripJsonExtension(String(dayKey || '').trim());
+            const c = String(cat || '').trim();
+            if (c) return c + ' — ' + leaf;
+            return leaf;
+        }
+
+        /** 章節選擇畫面上雲端 DAY 列表若開啟則重繪。 */
+        function refreshFirebaseDayPickerGrid() {
+            const dayPanel = document.getElementById('dayPickDayPanel');
+            if (
+                !dayPickFirebaseSnapshot ||
+                !dayPanel ||
+                dayPanel.classList.contains('hidden')
+            ) {
+                return;
+            }
+            const sub =
+                typeof dayPickFirebaseCategoryKey === 'string' &&
+                dayPickFirebaseCategoryKey.length > 0
+                    ? dayPickFirebaseSnapshot[dayPickFirebaseCategoryKey]
+                    : dayPickFirebaseSnapshot;
+            if (!sub) return;
+            renderDayPickGrid(sub, dayPickFirebaseCategoryKey || '');
+        }
+
+        function resetCloudDayChapter(dayKey, firebaseCategoryPrefix) {
+            const catPrefix =
+                firebaseCategoryPrefix === undefined || firebaseCategoryPrefix === null
+                    ? ''
+                    : String(firebaseCategoryPrefix);
+            const progressKey = firebaseCloudProgressStorageKey(catPrefix, dayKey);
+            const confirmLabel = firebaseCloudProgressStorageLabel(catPrefix, dayKey);
+            if (
+                !confirm(`確定要重置「${confirmLabel}」的學習進度？\n此操作無法復原。`)
+            )
+                return;
+            try {
+                const map = loadCloudDayProgressMap();
+                delete map[progressKey];
+                localStorage.setItem(CLOUD_DAY_PROGRESS_KEY, JSON.stringify(map));
+            } catch (err) {
+                console.warn(err);
+            }
+            const isCurrent =
+                deckSource === 'firebase' &&
+                String(currentDeckDisplayName || '').trim() === progressKey &&
+                baselineWords.length > 0;
+            if (isCurrent) {
+                wordsList = baselineWords.slice();
+                stats.again = stats.hard = stats.good = stats.easy = 0;
+                isFlipped = false;
+                resetFlip();
+                updateStatsUi();
+                suppressCardAutoSpeak = true;
+                persistState();
+                refreshStudyChrome();
+            }
+            refreshFirebaseDayPickerGrid();
+        }
+
+        /** 繪製雲端 DAY 卡片（含重置圖示）。`firebaseCategoryPrefix`：根下扁平為 `''`，有分類層為分類鍵名字串。 */
+        function renderDayPickGrid(allData, firebaseCategoryPrefix) {
+            const grid = document.getElementById('dayPickGrid');
+            const status = document.getElementById('dayPickStatus');
+            const titleBar = document.getElementById('dayPickTitle');
+            if (!grid || !status) return;
+
+            const catPrefix =
+                firebaseCategoryPrefix === undefined || firebaseCategoryPrefix === null
+                    ? ''
+                    : String(firebaseCategoryPrefix);
+
+            if (titleBar) {
+                if (catPrefix) titleBar.textContent = catPrefix;
+                else titleBar.textContent = FIREBASE_TOEIC_BOOK_DISPLAY_NAME;
+            }
+
+            status.classList.remove('text-rose-600');
+            status.classList.add('text-slate-500');
+
+            const days = discoverFirebaseDayKeys(allData);
+            if (!days.length) {
+                status.textContent = '目前沒有任何單字';
+                grid.innerHTML = '';
+                return;
+            }
+            status.textContent = '共 ' + days.length + ' 個章節，請點選開始';
+            grid.innerHTML = '';
+            const cloudMapAll = loadCloudDayProgressMap();
+
+            days.forEach((dayKey) => {
+                const node = allData && typeof allData === 'object' ? allData[dayKey] : null;
+                const info = getCloudChapterPickerInfo(dayKey, node, cloudMapAll, catPrefix);
+
+                const wrap = document.createElement('div');
+                wrap.className =
+                    'relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-100/80 outline-none transition-shadow transition-colors hover:border-indigo-200/90 hover:bg-indigo-50/80 hover:shadow-md active:bg-indigo-100/70 touch-manipulation focus-visible:ring-2 focus-visible:ring-indigo-400';
+                wrap.tabIndex = 0;
+                wrap.setAttribute('role', 'button');
+                wrap.addEventListener('click', (e) => {
+                    const n = e.target;
+                    const fromReset =
+                        n instanceof Element
+                            ? n.closest('.chapter-reset-btn')
+                            : n && n.parentElement && n.parentElement.closest('.chapter-reset-btn');
+                    if (fromReset) return;
+                    applyFirebaseDayDeck(dayKey, node, catPrefix);
+                });
+                wrap.addEventListener('keydown', (e) => {
+                    const n = e.target;
+                    const fromReset =
+                        n instanceof Element
+                            ? n.closest('.chapter-reset-btn')
+                            : n && n.parentElement && n.parentElement.closest('.chapter-reset-btn');
+                    if (fromReset) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        applyFirebaseDayDeck(dayKey, node, catPrefix);
+                    }
+                });
+
+                const headerRow = document.createElement('div');
+                headerRow.className =
+                    'flex shrink-0 items-center justify-between gap-2 px-3.5 pb-1 pt-3.5';
+
+                const titleEl = document.createElement('span');
+                titleEl.className =
+                    'min-w-0 flex-1 truncate text-base font-bold leading-tight text-indigo-900';
+                titleEl.textContent = dayKey;
+
+                const resetBtn = document.createElement('button');
+                resetBtn.type = 'button';
+                resetBtn.className =
+                    'chapter-reset-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
+                const resetAria = firebaseCloudProgressStorageLabel(catPrefix, dayKey);
+                resetBtn.setAttribute('aria-label', '重置「' + resetAria + '」章節進度');
+                resetBtn.innerHTML =
+                    '<i class="ph ph-arrow-counter-clockwise block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
+                resetBtn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    resetCloudDayChapter(dayKey, catPrefix);
+                });
+
+                headerRow.appendChild(titleEl);
+                headerRow.appendChild(resetBtn);
+
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'flex min-h-[5.5rem] flex-1 flex-col gap-2 px-3.5 pb-3.5 pt-2';
+                bodyEl.innerHTML =
+                    '<div class="flex min-w-0 flex-col gap-0.5 text-left text-[11px]">' +
+                    '<span class="text-slate-500">學習進度</span>' +
+                    '<span class="font-semibold tabular-nums text-slate-700">' +
+                    escapeHtml(info.progressLine) +
+                    ' · ' +
+                    info.pct +
+                    '%</span></div>' +
+                    '<div class="h-2 w-full shrink-0 overflow-hidden rounded-full bg-slate-200">' +
+                    '<div class="h-full rounded-full bg-indigo-500 transition-all duration-300" style="width:' +
+                    info.pct +
+                    '%"></div></div>' +
+                    '<p class="mt-auto min-h-[1.375rem] truncate pt-0.5 text-sm font-medium leading-snug text-slate-800" title="' +
+                    escapeHtml(info.lastKw || info.lastLine) +
+                    '">' +
+                    escapeHtml(info.lastLine) +
+                    '</p>';
+
+                wrap.appendChild(headerRow);
+                wrap.appendChild(bodyEl);
+                grid.appendChild(wrap);
+            });
+        }
+
+        function applyFirebaseDayDeck(dayKey, dayNode, firebaseCategoryPrefix) {
+            const catPrefix =
+                firebaseCategoryPrefix === undefined || firebaseCategoryPrefix === null
+                    ? ''
+                    : String(firebaseCategoryPrefix);
+            if (!dayNode || typeof dayNode !== 'object') {
+                alert('無法讀取「' + dayKey + '」的資料。');
+                return;
+            }
+            const raw = extractEntriesFromUnknownJson(dayNode);
+            if (!raw.length) {
+                alert('目前沒有任何單字。');
+                return;
+            }
+            const progressKey = firebaseCloudProgressStorageKey(catPrefix, dayKey);
+            const newBaseline = raw.map(normalizeEntry).filter((w) => w.keyword);
+            closeDayPickOverlay();
+
+            const snap = getCloudDayProgress(progressKey);
+
+            if (!snap || !snap.stats) {
+                applyImportedDeck(raw, dayKey, {
+                    source: 'firebase',
+                    firebaseDeckDisplayName: progressKey,
+                });
+                return;
+            }
+
+            const oldB = snap.baselineWords.map(normalizeEntry).filter((w) => w.keyword);
+            const oldK = new Set(oldB.map((w) => w.keyword));
+            const newK = new Set(newBaseline.map((w) => w.keyword));
+            let inter = 0;
+            for (const k of oldK) {
+                if (newK.has(k)) inter++;
+            }
+
+            baselineWords = newBaseline;
+            initialTotal = baselineWords.length;
+            deckSource = 'firebase';
+            currentDeckDisplayName = progressKey;
+
+            if (inter === 0) {
+                wordsList = newBaseline.slice();
+                stats.again = stats.hard = stats.good = stats.easy = 0;
+            } else {
+                wordsList = mergeWordsQueueWithNewBaseline(snap.wordsList, newBaseline);
+                stats.again = Number(snap.stats.again) || 0;
+                stats.hard = Number(snap.stats.hard) || 0;
+                stats.good = Number(snap.stats.good) || 0;
+                stats.easy = Number(snap.stats.easy) || 0;
+            }
+
+            isFlipped = false;
+            resetFlip();
+            updateStatsUi();
+            persistState();
+            updateDeckTitleUi();
+            enterStudyBoard();
+        }
 
         function flattenExtract(data) {
             if (!data || typeof data !== 'object') return [];
@@ -467,11 +1460,26 @@
         let initialTotal = baselineWords.length;
         let wordsList = baselineWords.slice();
         let currentDeckDisplayName = '';
+        /** 目前牌組來源：雲端 DAY 需在 persist 時同步寫入 CLOUD_DAY_PROGRESS_KEY */
+        let deckSource = 'import';
+        /** 是否已進入單字學習主畫面（首屏僅顯示歡迎頁）；每次重新載入頁面重置為未進入 */
+        let studyBoardVisible = false;
+        /** 章節選擇第二層快取，供重置後重整格子不必再連線；關閉選單時保留供下次零等待開啟。 */
+        let dayPickFirebaseSnapshot = null;
+        /**
+         * Firebase 選取層級：`undefined`=未載入／已關閉；`''`=根下直接為 DAY；非空字串=該書節點鍵名（進度前缀 `書 · DAY`）。
+         */
+        let dayPickFirebaseCategoryKey = undefined;
+
+        /** `#jsonFileInput` 開啟來源：`menu`=頂選單匯入；`overlayCustom`=章節內「匯入 JSON」 */
+        let pendingJsonImportContext = 'menu';
 
         let isFlipped = false;
         let currentWord = null;
         /** 換卡自動朗讀：避免快速連按導致播到上一張單字 */
         let autoSpeakCardSeq = 0;
+        /** 章節進度重置後重整卡片時略過下一次自動朗讀 */
+        let suppressCardAutoSpeak = false;
         let frontKkRequestSeq = 0;
         const dictionaryPhoneticCache = new Map();
 
@@ -500,6 +1508,7 @@
                     wordsList = o.wordsList.map(normalizeEntry).filter(w => w.keyword);
                 }
                 currentDeckDisplayName = typeof o.deckDisplayName === 'string' ? o.deckDisplayName : '';
+                deckSource = o.deckSource === 'firebase' ? 'firebase' : 'import';
                 if (o.stats && typeof o.stats === 'object') {
                     stats.again = Number(o.stats.again) || 0;
                     stats.hard = Number(o.stats.hard) || 0;
@@ -519,6 +1528,7 @@
                     baselineWords,
                     wordsList,
                     deckDisplayName: currentDeckDisplayName,
+                    deckSource: deckSource === 'firebase' ? 'firebase' : 'import',
                     stats: {
                         again: stats.again,
                         hard: stats.hard,
@@ -526,19 +1536,24 @@
                         easy: stats.easy
                     }
                 }));
+                if (deckSource === 'firebase' && currentDeckDisplayName) {
+                    saveCloudDayProgressSnapshot(currentDeckDisplayName, baselineWords, wordsList, stats);
+                }
                 syncCurrentDeckToHistory();
             } catch (e) {
                 console.warn('儲存進度失敗', e);
             }
         }
 
-        /** 將目前詞表與進度寫回「同 displayName」的歷程項目（與主畫面同步） */
+        /** 將目前詞表與進度寫回「同 displayName」的歷程項目（與主畫面同步）；雲端 DAY 不列入歷程 */
         function syncCurrentDeckToHistory() {
+            if (deckSource === 'firebase') return;
             const name = String(currentDeckDisplayName || '').trim();
             if (!name || !baselineWords.length) return;
             let list = loadDeckHistory();
             const entry = {
                 displayName: name,
+                source: deckSource === 'firebase' ? 'firebase' : 'import',
                 baselineWords: baselineWords.map(normalizeEntry).filter((w) => w.keyword),
                 wordsList: wordsList.map(normalizeEntry).filter((w) => w.keyword),
                 initialTotal,
@@ -554,7 +1569,6 @@
             list.unshift(entry);
             if (list.length > DECK_HISTORY_MAX) list = list.slice(0, DECK_HISTORY_MAX);
             localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
-            renderDeckHistoryMenu();
         }
 
         function stripJsonExtension(filename) {
@@ -569,14 +1583,62 @@
                 .replace(/"/g, '&quot;');
         }
 
+        /** 雲端章節頂列：第一行書名、第二行 DAY；扁平鍵僅有 DAY 時第一行用大全顯示名 */
+        function parseFirebaseDeckTitleLines(displayName) {
+            const t = String(displayName || '').trim();
+            const sep = ' · ';
+            if (!t) return { bookLine: '', dayLine: '' };
+            if (t.includes(sep)) {
+                const i = t.indexOf(sep);
+                return {
+                    bookLine: t.slice(0, i).trim(),
+                    dayLine: t.slice(i + sep.length).trim()
+                };
+            }
+            return { bookLine: FIREBASE_TOEIC_BOOK_DISPLAY_NAME, dayLine: t };
+        }
+
         function updateDeckTitleUi() {
-            const el = document.getElementById('deckTitleText');
-            if (!el) return;
+            const block = document.getElementById('deckTitleBlock');
+            const line1 = document.getElementById('deckTitleLine1');
+            const line2 = document.getElementById('deckTitleLine2');
+            if (!block || !line1 || !line2) return;
             const t = currentDeckDisplayName || '';
-            el.textContent = t;
-            el.title = t;
-            el.classList.toggle('invisible', !t);
-            document.title = t ? `${t} — 單字學習卡` : '單字學習卡';
+
+            if (deckSource === 'firebase' && t) {
+                const { bookLine, dayLine } = parseFirebaseDeckTitleLines(t);
+                line1.textContent = bookLine;
+                line2.textContent = dayLine;
+                line1.classList.remove('hidden');
+                const tip = bookLine && dayLine ? bookLine + '\n' + dayLine : t;
+                block.title = tip;
+                block.classList.remove('invisible');
+                document.title = dayLine ? `${dayLine} — 單字學習卡` : '單字學習卡';
+                return;
+            }
+
+            if (deckSource === 'import' && t) {
+                line1.textContent = CUSTOM_DECK_BAR_LINE;
+                line2.textContent = t;
+                line1.classList.remove('hidden');
+                block.title = CUSTOM_DECK_BAR_LINE + '\n' + t;
+                block.classList.remove('invisible');
+                document.title = `${t} — 單字學習卡`;
+                return;
+            }
+
+            line1.textContent = '';
+            line1.classList.add('hidden');
+            line2.textContent = t;
+            if (t) {
+                block.title = t;
+                block.classList.remove('invisible');
+                document.title = `${t} — 單字學習卡`;
+            } else {
+                block.removeAttribute('title');
+                block.classList.add('invisible');
+                document.title = '單字學習卡';
+            }
         }
 
         function loadDeckHistory() {
@@ -585,23 +1647,112 @@
                 if (!raw) return [];
                 const arr = JSON.parse(raw);
                 if (!Array.isArray(arr)) return [];
-                return arr.filter((x) => x && Array.isArray(x.baselineWords) && x.displayName);
+                /** 不包含雲端章節；舊資料曾寫入 source:firebase 者一併自清單與 raw 移除 */
+                const list = arr.filter(
+                    (x) =>
+                        x && Array.isArray(x.baselineWords) && x.displayName && x.source !== 'firebase'
+                );
+                if (list.length !== arr.length) {
+                    localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
+                }
+                return list;
             } catch {
                 return [];
             }
         }
 
+        /** 僅將匯入內容寫入自選歷程，不載入詞卡區（須在「自選單字」點該張卡片後才開始） */
+        function prependImportedDeckToHistoryFromRaw(rawEntries, displayNameRaw) {
+            const list = (rawEntries || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!list.length) return false;
+            const displayName =
+                stripJsonExtension(String(displayNameRaw || '').trim()) || '詞表';
+            let hist = loadDeckHistory();
+            hist = hist.filter((h) => h.displayName !== displayName);
+            hist.unshift({
+                displayName,
+                source: 'import',
+                baselineWords: list.map(normalizeEntry).filter((w) => w.keyword),
+                wordsList: list.slice(),
+                initialTotal: list.length,
+                stats: { again: 0, hard: 0, good: 0, easy: 0 },
+                savedAt: Date.now(),
+            });
+            if (hist.length > DECK_HISTORY_MAX) hist = hist.slice(0, DECK_HISTORY_MAX);
+            try {
+                localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(hist));
+            } catch (e) {
+                console.warn('儲存自選歷程失敗', e);
+            }
+            return true;
+        }
+
+        /** 重置自選詞表進度（本機 DECK_HISTORY_KEY），若為當前牌組則一併重設學習畫面 */
+        function resetImportDeckChapter(displayName) {
+            const name = String(displayName || '').trim();
+            if (!name) return;
+            if (
+                !confirm(`確定要重置「${name}」的學習進度？\n此操作無法復原。`)
+            ) {
+                return;
+            }
+            let hist = loadDeckHistory();
+            const idx = hist.findIndex((h) => h.displayName === name);
+            if (idx === -1) return;
+            const base = (hist[idx].baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!base.length) return;
+            hist[idx] = {
+                ...hist[idx],
+                baselineWords: base,
+                wordsList: base.slice(),
+                initialTotal: base.length,
+                stats: { again: 0, hard: 0, good: 0, easy: 0 },
+                savedAt: Date.now(),
+            };
+            try {
+                localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(hist));
+            } catch (e) {
+                console.warn(e);
+            }
+
+            const isCurrent =
+                deckSource === 'import' &&
+                String(currentDeckDisplayName || '').trim() === name &&
+                baselineWords.length > 0;
+            if (isCurrent) {
+                wordsList = baselineWords.slice();
+                stats.again = stats.hard = stats.good = stats.easy = 0;
+                isFlipped = false;
+                resetFlip();
+                updateStatsUi();
+                suppressCardAutoSpeak = true;
+                persistState();
+                refreshStudyChrome();
+            }
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            if (customPanel && !customPanel.classList.contains('hidden')) {
+                renderCustomDeckPickGrid();
+            }
+        }
+
+        /** 從自選列表移除紀錄；若為目前正載入的 import 牌組則清空學習畫面。 */
         function removeDeckFromHistory(displayName) {
             const name = String(displayName || '').trim();
             if (!name) return;
-            if (!confirm(`從歷程中移除「${name}」？`)) return;
+            if (!confirm(`從列表移除「${name}」？\n此紀錄將刪除且無法復原。`)) return;
             const list = loadDeckHistory().filter((h) => h.displayName !== name);
-            localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
-            renderDeckHistoryMenu();
+            try {
+                localStorage.setItem(DECK_HISTORY_KEY, JSON.stringify(list));
+            } catch (e) {
+                console.warn(e);
+            }
 
-            if (String(currentDeckDisplayName || '').trim() === name) {
+            const isCurrent =
+                deckSource === 'import' &&
+                String(currentDeckDisplayName || '').trim() === name &&
+                baselineWords.length > 0;
+            if (isCurrent) {
                 try {
-                    /** 不可只 removeItem：重新整理後 loadPersistedState 會略過，內嵌 rawJsonData 會再度出現 */
                     localStorage.setItem(
                         STORAGE_KEY,
                         JSON.stringify({
@@ -610,6 +1761,7 @@
                             baselineWords: [],
                             wordsList: [],
                             deckDisplayName: '',
+                            deckSource: 'import',
                             stats: { again: 0, hard: 0, good: 0, easy: 0 },
                         })
                     );
@@ -621,53 +1773,45 @@
                 initialTotal = 0;
                 stats.again = stats.hard = stats.good = stats.easy = 0;
                 currentDeckDisplayName = '';
+                deckSource = 'import';
                 isFlipped = false;
                 resetFlip();
                 updateDeckTitleUi();
                 updateStatsUi();
-                renderCard();
+                leaveStudyBoard();
+            }
+            const customPanel = document.getElementById('dayPickCustomPanel');
+            if (customPanel && !customPanel.classList.contains('hidden')) {
+                renderCustomDeckPickGrid();
             }
         }
 
-        function renderDeckHistoryMenu() {
-            const section = document.getElementById('deckHistorySection');
-            const container = document.getElementById('deckHistoryList');
-            if (!section || !container) return;
-            container.innerHTML = '';
-            const list = loadDeckHistory();
-            if (!list.length) {
-                section.classList.add('hidden');
-                return;
+        /** 章節選擇「自選單字」清單：歷程＋本機 STORAGE 已還原但尚未寫入歷程的匯入牌組 */
+        function getCustomDeckListForPicker() {
+            const list = loadDeckHistory().map((x) => ({ ...x }));
+            const name = String(currentDeckDisplayName || '').trim();
+            if (
+                name &&
+                deckSource === 'import' &&
+                baselineWords.length > 0 &&
+                !list.some((h) => h.displayName === name)
+            ) {
+                list.unshift({
+                    displayName: name,
+                    source: 'import',
+                    baselineWords: baselineWords.map(normalizeEntry).filter((w) => w.keyword),
+                    wordsList: wordsList.map(normalizeEntry).filter((w) => w.keyword),
+                    initialTotal,
+                    stats: {
+                        again: stats.again,
+                        hard: stats.hard,
+                        good: stats.good,
+                        easy: stats.easy,
+                    },
+                    savedAt: Date.now(),
+                });
             }
-            section.classList.remove('hidden');
-            list.forEach((item) => {
-                const row = document.createElement('div');
-                row.className = 'flex items-stretch border-b border-slate-50 last:border-b-0';
-
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.role = 'menuitem';
-                btn.className = 'flex-1 min-w-0 px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-100';
-                btn.innerHTML = `<span class="block text-sm font-medium text-slate-800 truncate">${escapeHtml(item.displayName)}</span><span class="block text-[11px] text-slate-400 mt-0.5">復原詞表與已存進度</span>`;
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    restoreDeckFromHistory(item);
-                });
-
-                const delBtn = document.createElement('button');
-                delBtn.type = 'button';
-                delBtn.className = 'shrink-0 flex items-center justify-center px-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 rounded-lg my-1 mr-1 touch-manipulation';
-                delBtn.setAttribute('aria-label', '從歷程中刪除此項目');
-                delBtn.innerHTML = '<i class="ph ph-trash text-lg" aria-hidden="true"></i>';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    removeDeckFromHistory(item.displayName);
-                });
-
-                row.appendChild(btn);
-                row.appendChild(delBtn);
-                container.appendChild(row);
-            });
+            return list;
         }
 
         function sanitizeWordsListFromBaseline(wl, baseline) {
@@ -676,25 +1820,49 @@
             return raw.length ? raw : baseline.slice();
         }
 
-        function restoreDeckFromHistory(item) {
-            const base = (item.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
-            if (!base.length) {
-                alert('此紀錄沒有單字資料。');
-                return;
+        function getImportDeckCardInfo(entry) {
+            const base = (entry.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
+            const denom = Math.max(base.length, 1);
+            const wl =
+                entry.stats &&
+                typeof entry.stats === 'object' &&
+                Array.isArray(entry.wordsList)
+                    ? sanitizeWordsListFromBaseline(entry.wordsList, base)
+                    : base.slice();
+            const remaining = wl.length;
+            const done = Math.max(0, Math.min(denom, denom - remaining));
+            const st = entry.stats && typeof entry.stats === 'object' ? entry.stats : {};
+            /** Again/Hard/Good 不會立刻縮短隊列（done 常仍為 0），須結合評分次數辨識是否真的「開始過」 */
+            const ratingCount =
+                (Number(st.again) || 0) +
+                (Number(st.hard) || 0) +
+                (Number(st.good) || 0) +
+                (Number(st.easy) || 0);
+            const pct = Math.min(100, Math.max(0, Math.round((done / denom) * 100)));
+            let lastLine = '尚未開始';
+            if (remaining === 0 && base.length > 0) {
+                lastLine = '已完成本章';
+            } else if (remaining > 0 && done === 0 && ratingCount === 0) {
+                lastLine = '尚未開始';
+            } else if (remaining > 0 && wl[0]) {
+                lastLine = String(wl[0].keyword ?? '').trim() || '⋯';
             }
+            return {
+                pct,
+                progressLine: done + ' / ' + denom,
+                lastLine,
+            };
+        }
+
+        function applyDeckHistoryItemInner(item) {
+            const base = (item.baselineWords || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!base.length) return false;
+            baselineWords = base;
+            initialTotal = baselineWords.length;
             const hasSnap =
                 item.stats &&
                 typeof item.stats === 'object' &&
                 Array.isArray(item.wordsList);
-            const msg = hasSnap
-                ? `復原詞表「${item.displayName}」？\n將載入歷程中儲存的剩餘張數與統計（不會重設）。`
-                : `復原詞表「${item.displayName}」？\n此筆為舊版歷程，將從頭開始練習。`;
-            if (!confirm(msg)) return;
-            closeMenu();
-
-            baselineWords = base;
-            initialTotal = baselineWords.length;
-
             if (hasSnap) {
                 wordsList = sanitizeWordsListFromBaseline(item.wordsList, baselineWords);
                 stats.again = Number(item.stats.again) || 0;
@@ -705,14 +1873,104 @@
                 wordsList = baselineWords.slice();
                 stats.again = stats.hard = stats.good = stats.easy = 0;
             }
-
             currentDeckDisplayName = item.displayName;
+            deckSource = item.source === 'firebase' ? 'firebase' : 'import';
             isFlipped = false;
             resetFlip();
             updateStatsUi();
             persistState();
             updateDeckTitleUi();
-            renderCard();
+            return true;
+        }
+
+        function applyImportDeckFromPicker(item) {
+            if (!applyDeckHistoryItemInner(item)) {
+                alert('此紀錄沒有單字資料。');
+                return;
+            }
+            closeDayPickOverlay();
+            enterStudyBoard();
+        }
+
+        /**
+         * 以「舊隊列順序」接回新 baseline（例句／片語以雲端最新為準）；新單字接在隊列末尾。
+         */
+        function mergeWordsQueueWithNewBaseline(savedWl, newBaseline) {
+            const byKw = new Map(newBaseline.map((w) => [w.keyword, w]));
+            const allowed = new Set(newBaseline.map((w) => w.keyword));
+            const saved = (savedWl || []).map(normalizeEntry).filter((w) => w.keyword && allowed.has(w.keyword));
+            const merged = saved.map((w) => byKw.get(w.keyword) || w);
+            const inQueue = new Set(merged.map((w) => w.keyword));
+            for (const w of newBaseline) {
+                if (!inQueue.has(w.keyword)) {
+                    merged.push(w);
+                    inQueue.add(w.keyword);
+                }
+            }
+            return merged.length ? merged : newBaseline.slice();
+        }
+
+        function countEntriesInFirebaseDayNode(dayNode) {
+            if (!dayNode || typeof dayNode !== 'object') return 0;
+            return extractEntriesFromUnknownJson(dayNode).filter((e) => String(e.keyword ?? e.word ?? '').trim()).length;
+        }
+
+        /**
+         * 章節選擇格子：進度（已處理／分母）、百分比、隊列最前單字（下一張要打分的）。
+         */
+        function getCloudChapterPickerInfo(dayKey, dayNode, cloudMap, firebaseCategoryPrefix) {
+            const catPrefix =
+                firebaseCategoryPrefix === undefined || firebaseCategoryPrefix === null
+                    ? ''
+                    : String(firebaseCategoryPrefix);
+            const progressKey = firebaseCloudProgressStorageKey(catPrefix, dayKey);
+            const totalLive = countEntriesInFirebaseDayNode(dayNode);
+            const snap =
+                cloudMap &&
+                typeof cloudMap === 'object' &&
+                cloudMap[progressKey] &&
+                typeof cloudMap[progressKey] === 'object'
+                    ? cloudMap[progressKey]
+                    : null;
+            if (!snap || !Array.isArray(snap.wordsList) || !Array.isArray(snap.baselineWords)) {
+                const n = Math.max(0, totalLive);
+                return {
+                    pct: 0,
+                    progressLine: n > 0 ? '0 / ' + n : '0 / 0',
+                    lastLine: '尚未開始',
+                    lastKw: '',
+                };
+            }
+            const remaining = snap.wordsList.length;
+            const baseLen = snap.baselineWords.length;
+            const denom = Math.max(totalLive || 0, baseLen || 0, 1);
+            const done = Math.max(0, Math.min(denom, denom - remaining));
+            const st = snap.stats && typeof snap.stats === 'object' ? snap.stats : {};
+            const ratingCount =
+                (Number(st.again) || 0) +
+                (Number(st.hard) || 0) +
+                (Number(st.good) || 0) +
+                (Number(st.easy) || 0);
+            const pct = Math.min(100, Math.max(0, Math.round((done / denom) * 100)));
+            let lastLine = '尚未開始';
+            let lastKw = '';
+            if (remaining === 0 && baseLen > 0) {
+                lastLine = '已完成本章';
+            } else if (remaining > 0 && done === 0 && ratingCount === 0) {
+                /** 與無快照／重製後一致；但一旦打過任一評分就不再顯示「尚未開始」 */
+                lastLine = '尚未開始';
+                lastKw = '';
+            } else if (remaining > 0) {
+                const w0 = snap.wordsList[0];
+                lastKw = w0 && typeof w0 === 'object' ? String(w0.keyword ?? w0.word ?? '').trim() : '';
+                lastLine = lastKw || '⋯';
+            }
+            return {
+                pct,
+                progressLine: done + ' / ' + denom,
+                lastLine,
+                lastKw,
+            };
         }
 
         function updateStatsUi() {
@@ -720,6 +1978,15 @@
             document.getElementById('statHard').innerText = stats.hard;
             document.getElementById('statGood').innerText = stats.good;
             document.getElementById('statEasy').innerText = stats.easy;
+        }
+
+        /** 首頁／未進入學習區時強制將底部評分統計顯示為零（不比對記憶體 stats） */
+        function resetStatsFooterDisplay() {
+            const ids = ['statAgain', 'statHard', 'statGood', 'statEasy'];
+            for (const id of ids) {
+                const el = document.getElementById(id);
+                if (el) el.innerText = '0';
+            }
         }
 
         function scoreVoiceForEnglish(v) {
@@ -1094,6 +2361,9 @@
 
         function openQuiz() {
             closeMenu();
+            if (!studyBoardVisible) {
+                return;
+            }
             if (!baselineWords.length) {
                 alert('請先匯入 JSON 詞表。');
                 return;
@@ -1212,6 +2482,7 @@
         }
 
         function toggleFlip() {
+            if (!studyBoardVisible) return;
             const flipRoot = document.getElementById('flipCardRoot');
             const frontFace = document.getElementById('frontFace');
             const backFace = document.getElementById('backFace');
@@ -1241,6 +2512,8 @@
         }
 
         function renderCard() {
+            if (!studyBoardVisible) return;
+
             const emptyEl = document.getElementById('deckEmptyPrompt');
             const completeEl = document.getElementById('deckCompleteScreen');
             const flipRoot = document.getElementById('flipCardRoot');
@@ -1393,11 +2666,15 @@
             const kw = currentWord.keyword;
             const seq = ++autoSpeakCardSeq;
             window.speechSynthesis.cancel();
-            window.setTimeout(() => {
-                if (seq !== autoSpeakCardSeq) return;
-                if (!wordsList.length || wordsList[0].keyword !== kw) return;
-                playAudio(kw);
-            }, 120);
+            if (suppressCardAutoSpeak) {
+                suppressCardAutoSpeak = false;
+            } else {
+                window.setTimeout(() => {
+                    if (seq !== autoSpeakCardSeq) return;
+                    if (!wordsList.length || wordsList[0].keyword !== kw) return;
+                    playAudio(kw);
+                }, 120);
+            }
         }
 
         function handleRating(rating, event) {
@@ -1405,6 +2682,8 @@
                 event.stopPropagation();
                 event.preventDefault();
             }
+
+            if (!studyBoardVisible) return;
 
             if (wordsList.length === 0) return;
 
@@ -1443,20 +2722,9 @@
             }, 150);
         }
 
-        function resetAllProgress() {
-            if (!confirm('確定要重置所有進度？此操作無法復原。')) return;
-            localStorage.removeItem(STORAGE_KEY);
-            wordsList = baselineWords.slice();
-            stats.again = stats.hard = stats.good = stats.easy = 0;
-            isFlipped = false;
-            closeMenu();
-            resetFlip();
-            updateStatsUi();
-            persistState();
-            renderCard();
-        }
-
-        function applyImportedDeck(entries, displayName) {
+        function applyImportedDeck(entries, displayName, opts) {
+            const src = opts && opts.source === 'firebase' ? 'firebase' : 'import';
+            const o = opts && typeof opts === 'object' ? opts : {};
             const list = entries.map(normalizeEntry).filter(w => w.keyword);
             if (!list.length) {
                 alert('檔案中沒有可用的單字（需要 keyword 或 word 欄位）。');
@@ -1466,13 +2734,18 @@
             initialTotal = baselineWords.length;
             wordsList = baselineWords.slice();
             stats.again = stats.hard = stats.good = stats.easy = 0;
-            currentDeckDisplayName = stripJsonExtension(displayName || '');
+            deckSource = src;
+            if (typeof o.firebaseDeckDisplayName === 'string' && o.firebaseDeckDisplayName.trim()) {
+                currentDeckDisplayName = o.firebaseDeckDisplayName.trim();
+            } else {
+                currentDeckDisplayName = stripJsonExtension(displayName || '');
+            }
             isFlipped = false;
             resetFlip();
             updateStatsUi();
             persistState();
             updateDeckTitleUi();
-            renderCard();
+            enterStudyBoard();
         }
 
         function makeMultiFileDeckDisplayName(files) {
@@ -1495,13 +2768,15 @@
         }
 
         /**
-         * 複選多個 JSON：依檔案順序合併條目後套用同一副牌。
-         * 多檔時若不同檔出現相同 keyword（不分大小寫），只保留較早檔／較前出現的那一筆。
+         * 複選多個 JSON：依檔案順序合併條目後僅寫入自選歷程；使用者須在「自選單字」點該卡片才進入學習。
+         * 若在章節內「匯入 JSON」呼叫，則留在自選面板並重新整理列表。
          */
         async function importJsonFiles(fileList) {
             const files = Array.from(fileList || []).filter(Boolean);
             if (!files.length) return;
-            closeMenu();
+            const importUi = pendingJsonImportContext;
+            pendingJsonImportContext = 'menu';
+
             const multi = files.length > 1;
             const seenKw = new Set();
             const mergedRaw = [];
@@ -1542,10 +2817,30 @@
             }
 
             const displayName = files.length === 1 ? files[0].name : makeMultiFileDeckDisplayName(files);
-            applyImportedDeck(mergedRaw, displayName);
+            prependImportedDeckToHistoryFromRaw(mergedRaw, displayName);
+
+            closeMenu();
+            if (importUi === 'overlayCustom') {
+                const customPanel = document.getElementById('dayPickCustomPanel');
+                const ov = document.getElementById('dayPickOverlay');
+                if (
+                    customPanel &&
+                    !customPanel.classList.contains('hidden') &&
+                    ov &&
+                    !ov.classList.contains('hidden')
+                ) {
+                    renderCustomDeckPickGrid();
+                }
+            } else {
+                const ov = document.getElementById('dayPickOverlay');
+                if (!ov) return;
+                prepareDayPickSourceStep();
+                ov.classList.remove('hidden');
+                openCustomWordListPanel();
+            }
 
             if (errors.length) {
-                alert('以下檔案未併入（其餘已成功載入）：\n' + errors.join('\n'));
+                alert('以下檔案未併入（其餘已成功加入自選列表）：\n' + errors.join('\n'));
             }
         }
 
@@ -1565,7 +2860,6 @@
             document.getElementById('menuBackdrop').classList.remove('hidden');
             document.getElementById('appMenuPanel').classList.remove('hidden');
             document.getElementById('menuOpenBtn').setAttribute('aria-expanded', 'true');
-            renderDeckHistoryMenu();
         }
 
         function closeMenu() {
@@ -1580,10 +2874,21 @@
             if (panel.classList.contains('hidden')) openMenu();
             else closeMenu();
         });
+        document.getElementById('menuImportLabel').addEventListener('click', () => {
+            pendingJsonImportContext = 'menu';
+        });
         document.getElementById('menuBackdrop').addEventListener('click', closeMenu);
-        document.getElementById('menuResetBtn').addEventListener('click', (e) => {
+        document.getElementById('menuFirebaseChapterBtn').addEventListener('click', (e) => {
             e.stopPropagation();
-            resetAllProgress();
+            openDayChapterPicker();
+        });
+        document.getElementById('dayPickBackBtn').addEventListener('click', () => goDayPickBack());
+        document.getElementById('dayPickCustomDeckBtn').addEventListener('click', () => {
+            openCustomWordListPanel();
+        });
+        document.getElementById('dayPickCustomImportBtn').addEventListener('click', () => {
+            pendingJsonImportContext = 'overlayCustom';
+            document.getElementById('jsonFileInput').click();
         });
 
         document.getElementById('quizOpenBtn').addEventListener('click', (e) => {
@@ -1616,10 +2921,18 @@
                     e.preventDefault();
                     return;
                 }
+                if (isDayPickOpen()) {
+                    goDayPickBack();
+                    e.preventDefault();
+                    return;
+                }
                 closeMenu();
                 return;
             }
             if (isQuizOpen()) {
+                return;
+            }
+            if (!studyBoardVisible) {
                 return;
             }
             if (isFlipped) {
@@ -1647,11 +2960,9 @@
         }, true);
 
         loadPersistedState();
-        updateDeckTitleUi();
-        renderDeckHistoryMenu();
-        updateStatsUi();
-        // 初始化
-        renderCard();
+        studyBoardVisible = false;
+        refreshStudyChrome();
+        prefetchFirebaseChapterCatalog();
 
     </script>
 </body>
