@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
-    <title>單字學習卡</title>
+    <title>VocaUp</title>
     <meta name="theme-color" content="#f8fafc">
-    <meta name="apple-mobile-web-app-title" content="單字學習卡">
-    <!-- 內嵌 SVG 圖示，避免 file:// 開檔時 icon.png 404 -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='15' font-weight='700' fill='%23fff' font-family='system-ui,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='15' font-weight='700' fill='%23fff' font-family='system-ui,sans-serif'%3EW%3C/text%3E%3C/svg%3E">
+    <meta name="apple-mobile-web-app-title" content="VocaUp">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
     <!-- file:// 無法載入 manifest（CORS origin null）；僅在 http/https 註冊 PWA -->
     <script>
     (function () {
@@ -452,6 +451,8 @@
         const STORAGE_KEY = 'toeic-flashcard-v2';
         const DECK_HISTORY_KEY = 'toeic-deck-history-v1';
         const DECK_HISTORY_MAX = 15;
+        /** 分頁標題與 PWA／主畫面捷徑顯示名稱 */
+        const APP_DISPLAY_NAME = 'VocaUp';
         /** 雲端 DAY 專用：不受「最近匯入」筆數上限影響，重新從 Firebase 進入同一天時還原進度 */
         const CLOUD_DAY_PROGRESS_KEY = 'toeic-cloud-day-progress-v1';
         /** Firebase 「書」層級預期鍵名；實際標題仍以資料庫鍵為準（顯示在頂題） */
@@ -553,7 +554,7 @@
                     deckTitleLine1.classList.add('hidden');
                 }
                 if (deckTitleLine2) deckTitleLine2.textContent = '';
-                document.title = '單字學習卡';
+                document.title = APP_DISPLAY_NAME;
                 resetFlip();
                 if (flipRoot) flipRoot.classList.add('hidden');
                 if (emptyEl) emptyEl.classList.add('hidden');
@@ -1613,7 +1614,7 @@
                 const tip = bookLine && dayLine ? bookLine + '\n' + dayLine : t;
                 block.title = tip;
                 block.classList.remove('invisible');
-                document.title = dayLine ? `${dayLine} — 單字學習卡` : '單字學習卡';
+                document.title = dayLine ? `${dayLine} — ${APP_DISPLAY_NAME}` : APP_DISPLAY_NAME;
                 return;
             }
 
@@ -1623,7 +1624,7 @@
                 line1.classList.remove('hidden');
                 block.title = CUSTOM_DECK_BAR_LINE + '\n' + t;
                 block.classList.remove('invisible');
-                document.title = `${t} — 單字學習卡`;
+                document.title = `${t} — ${APP_DISPLAY_NAME}`;
                 return;
             }
 
@@ -1633,11 +1634,11 @@
             if (t) {
                 block.title = t;
                 block.classList.remove('invisible');
-                document.title = `${t} — 單字學習卡`;
+                document.title = `${t} — ${APP_DISPLAY_NAME}`;
             } else {
                 block.removeAttribute('title');
                 block.classList.add('invisible');
-                document.title = '單字學習卡';
+                document.title = APP_DISPLAY_NAME;
             }
         }
 
