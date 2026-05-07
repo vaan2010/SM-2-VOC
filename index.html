@@ -214,6 +214,97 @@
             border-bottom-color: rgb(99 102 241);
             outline: none;
         }
+
+        /*
+         * 右下角「回首頁」浮動鍵：貼在 #cardInner（翻卡區／歡迎畫面的圓角白底）內側右下角，
+         * 版型仍參考 money.html .currency-toggle-btn（縮折標籤／hover 展開）
+         */
+        .app-home-fab {
+            position: absolute;
+            bottom: max(0.375rem, calc(env(safe-area-inset-bottom, 0px)));
+            right: max(0.375rem, env(safe-area-inset-right, 0px));
+            width: 2.625rem;
+            height: 2.625rem;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgb(203 213 225);
+            color: rgb(51 65 85);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+            z-index: 50;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s ease,
+                background-color 0.25s ease;
+            padding: 0;
+            gap: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .app-home-fab:hover {
+            transform: scale(1.02);
+            background: rgba(241 245 249 / 0.95) !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+        }
+        .app-home-fab:active {
+            transform: scale(0.95);
+        }
+        .app-home-fab i.ph {
+            font-size: 0.8125rem;
+            margin: 0;
+            line-height: 1;
+            transition: font-size 0.25s ease;
+        }
+        .app-home-fab .app-home-fab-label {
+            font-size: 0.625rem;
+            line-height: 1;
+            opacity: 0;
+            max-height: 0;
+            transform: scale(0.85);
+            overflow: hidden;
+            transition: opacity 0.25s ease, max-height 0.25s ease, transform 0.25s ease;
+            font-weight: 600;
+        }
+        @media (min-width: 768px) {
+            .app-home-fab:hover {
+                width: 3.875rem;
+                height: 3.875rem;
+                gap: 0.125rem;
+            }
+            .app-home-fab:hover i.ph {
+                font-size: 1.125rem;
+            }
+            .app-home-fab:hover .app-home-fab-label {
+                opacity: 1;
+                max-height: 1rem;
+                transform: scale(1);
+            }
+        }
+        @media (max-width: 767px) {
+            .app-home-fab {
+                bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+                right: max(0.5rem, env(safe-area-inset-right, 0px));
+                width: 2.875rem;
+                height: 2.875rem;
+                gap: 0.125rem;
+            }
+            .app-home-fab i.ph {
+                font-size: 1rem;
+            }
+            .app-home-fab .app-home-fab-label {
+                opacity: 1;
+                max-height: 0.75rem;
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 <body class="h-full max-h-full overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased touch-manipulation select-none">
@@ -368,10 +459,18 @@
     <div class="card-stage perspective">
         <div id="cardInner" class="relative w-full h-full min-h-0 shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden">
 
-            <div id="welcomeScreen" class="absolute inset-0 z-[42] flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 px-8 py-10 text-center">
-                <span class="text-4xl sm:text-5xl mb-4 select-none" aria-hidden="true">👋</span>
-                <h2 class="text-xl sm:text-2xl font-bold text-indigo-900 mb-2 shrink-0">歡迎</h2>
-                <p class="text-sm text-slate-600 leading-relaxed max-w-[19rem]">請點左上角選單，選擇「章節選擇」後挑選詞表開始學習。</p>
+            <div id="welcomeScreen" class="absolute inset-0 z-[42] flex min-h-0 flex-col bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <div class="shrink-0 flex flex-col items-center px-6 pt-8 pb-4 text-center border-b border-slate-100 bg-gradient-to-b from-indigo-50/40 to-white">
+                    <span class="text-4xl sm:text-5xl mb-3 select-none" aria-hidden="true">👋</span>
+                    <h2 class="text-xl sm:text-2xl font-bold text-indigo-900 shrink-0">歡迎使用 VocaUp</h2>
+                    <p id="welcomeDateLine" class="mt-2.5 text-sm font-semibold text-slate-700 tabular-nums tracking-tight"></p>
+                    <p id="welcomeWeatherLine" class="mt-1 text-xs text-slate-500 min-h-[2.5rem] flex items-center justify-center px-2" aria-live="polite"></p>
+                </div>
+                <div class="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
+                    <h3 class="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">最近學習</h3>
+                    <p id="homeRecentDeckEmpty" class="hidden flex flex-1 flex-col items-center justify-center py-10 text-center text-sm text-slate-400 px-2">尚無最近學習紀錄</p>
+                    <div id="homeRecentDeckHost" class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pb-2"></div>
+                </div>
             </div>
 
             <div id="deckEmptyPrompt" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 text-center">
@@ -458,6 +557,12 @@
             </div>
 
             </div>
+
+            <button type="button" id="appHomeFab" class="app-home-fab hidden" title="回到首頁" aria-label="回到首頁" aria-hidden="true">
+                <i class="ph ph-house" aria-hidden="true"></i>
+                <span class="app-home-fab-label">首頁</span>
+            </button>
+
         </div>
     </div>
 
@@ -489,6 +594,8 @@
         const STORAGE_KEY = 'toeic-flashcard-v2';
         const DECK_HISTORY_KEY = 'toeic-deck-history-v1';
         const DECK_HISTORY_MAX = 15;
+        /** 主畫面歡迎區「最近學習」列出的自選紀錄筆數上限 */
+        const HOME_RECENT_DECKS_MAX = 6;
         /** 分頁標題與 PWA／主畫面捷徑顯示名稱 */
         const APP_DISPLAY_NAME = 'VocaUp';
         /** 雲端 DAY 專用：不受「最近匯入」筆數上限影響，重新從 Firebase 進入同一天時還原進度 */
@@ -497,6 +604,12 @@
         const FIREBASE_TOEIC_BOOK_DISPLAY_NAME = '新制多益 TOEIC 單字大全';
         /** 匯入自選詞表頂列第一行（與章節選單「自選單字」一致） */
         const CUSTOM_DECK_BAR_LINE = '自選單字';
+        /** 歡迎區天氣：定位失敗或非安全情境時使用（台北） */
+        const WELCOME_WEATHER_FALLBACK_LAT = 25.033964;
+        const WELCOME_WEATHER_FALLBACK_LON = 121.564468;
+        /** 歡迎區天氣快取最短間隔（同曆日內不重複請求，除非間隔過了） */
+        const WELCOME_WEATHER_FETCH_MIN_MS = 25 * 60 * 1000;
+        let welcomeWeatherCache = { dayKey: '', at: 0, text: '' };
         const FIREBASE_DAY_LONG_PRESS_MS = 520;
         const FIREBASE_DAY_LONG_PRESS_MOVE_PX = 14;
         /** 雲端 DAY 長按複選合併 → 自選（須在繪格／手勢函式之前宣告）。 */
@@ -549,6 +662,78 @@
             }
         }
 
+        function firebaseProgressTotalRatings(st) {
+            if (!st || typeof st !== 'object') return 0;
+            return (
+                (Number(st.again) || 0) +
+                (Number(st.hard) || 0) +
+                (Number(st.good) || 0) +
+                (Number(st.easy) || 0)
+            );
+        }
+
+        /** 讀取主工作階段 STORAGE 中同 progressKey 的雲端章節快照（與 CLOUD map 可能不同步時用於合併）。 */
+        function readStorageFirebaseSnapshotForKey(progressKey) {
+            const want = String(progressKey || '').trim();
+            if (!want) return null;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const o = JSON.parse(raw);
+                if (o.v !== 2 || o.deckSource !== 'firebase') return null;
+                if (String(o.deckDisplayName || '').trim() !== want) return null;
+                if (!Array.isArray(o.baselineWords) || !Array.isArray(o.wordsList)) return null;
+                return {
+                    baselineWords: o.baselineWords,
+                    wordsList: o.wordsList,
+                    stats:
+                        o.stats && typeof o.stats === 'object'
+                            ? o.stats
+                            : { again: 0, hard: 0, good: 0, easy: 0 },
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        /**
+         * 雲端 map 快照與主 STORAGE 快照擇優（避免因只寫入其一或競態導致還原到較舊進度）。
+         * @param {number|null} newBaselineLen 目前 Firebase DAY 詞數；在非同步情境可傳 `null` 略過對齊權重。
+         */
+        function pickBetterFirebaseProgressSnap(cloudSnap, storageSnap, newBaselineLen) {
+            const norm = function (s) {
+                if (!s || typeof s !== 'object') return null;
+                if (!Array.isArray(s.baselineWords) || !Array.isArray(s.wordsList)) return null;
+                return s;
+            };
+            const c = norm(cloudSnap);
+            const st = norm(storageSnap);
+            if (!c && !st) return null;
+            if (!st) return c;
+            if (!c) return st;
+            const cBase = c.baselineWords.length;
+            const stBase = st.baselineWords.length;
+            const cRem = c.wordsList.length;
+            const stRem = st.wordsList.length;
+            const cRat = firebaseProgressTotalRatings(c.stats);
+            const stRat = firebaseProgressTotalRatings(st.stats);
+            const n = newBaselineLen == null ? null : Number(newBaselineLen);
+            if (Number.isFinite(n) && n > 0) {
+                const cMatch = cBase === n ? 1 : 0;
+                const stMatch = stBase === n ? 1 : 0;
+                if (cMatch !== stMatch) {
+                    return stMatch > cMatch ? st : c;
+                }
+            }
+            if (stRat !== cRat) {
+                return stRat > cRat ? st : c;
+            }
+            if (stRem !== cRem) {
+                return stRem < cRem ? st : c;
+            }
+            return st;
+        }
+
         /** 與 test.html 相同專案的 Realtime Database */
         const firebaseConfig = {
             apiKey: 'AIzaSyBaZzqhJVgEANxatAvrK9j-ceiRXRsGr00',
@@ -571,7 +756,114 @@
             refreshStudyChrome();
         }
 
+        /** 關閉測驗／章節選單／頂選單，並回到歡迎主畫面（與 money 幣別鍵類似為固定右下角）。 */
+        function goToHomeScreen() {
+            if (isQuizOpen()) {
+                closeQuiz();
+            }
+            if (isDayPickOpen()) {
+                closeDayPickOverlay();
+            }
+            closeMenu();
+            if (studyBoardVisible) {
+                persistState();
+                leaveStudyBoard();
+            }
+        }
+
+        /** Open-Meteo／WMO 天氣代碼簡述（zh-TW 顯示用） */
+        function wmoCodeToZh(code) {
+            const c = Number(code);
+            if (c === 0) return { emoji: '☀️', label: '晴' };
+            if (c >= 1 && c <= 3) return { emoji: '🌤️', label: c === 3 ? '陰' : '多雲' };
+            if (c === 45 || c === 48) return { emoji: '🌫️', label: '霧' };
+            if (c >= 51 && c <= 57) return { emoji: '🌦️', label: '毛毛雨' };
+            if (c >= 61 && c <= 67) return { emoji: '🌧️', label: '雨' };
+            if (c >= 71 && c <= 77) return { emoji: '❄️', label: '雪' };
+            if (c >= 80 && c <= 82) return { emoji: '🌧️', label: '陣雨' };
+            if (c >= 85 && c <= 86) return { emoji: '❄️', label: '陣雪' };
+            if (c >= 95 && c <= 99) return { emoji: '⛈️', label: '雷雨' };
+            return { emoji: '🌡️', label: '其他' };
+        }
+
+        async function fetchWelcomeWeatherLine(lat, lon) {
+            const u =
+                'https://api.open-meteo.com/v1/forecast?latitude=' +
+                encodeURIComponent(lat) +
+                '&longitude=' +
+                encodeURIComponent(lon) +
+                '&current=temperature_2m,weather_code&timezone=auto';
+            const r = await fetch(u);
+            if (!r.ok) throw new Error('weather');
+            const j = await r.json();
+            const cur = j && j.current;
+            if (!cur || typeof cur.temperature_2m !== 'number') throw new Error('weather');
+            const t = Math.round(cur.temperature_2m);
+            const { emoji, label } = wmoCodeToZh(cur.weather_code);
+            return emoji + ' ' + t + '°C · ' + label;
+        }
+
+        /** 主畫面歡迎區：今日日期與目前天氣（免 API 金鑰，Open-Meteo） */
+        function refreshWelcomeDateWeather() {
+            const dateEl = document.getElementById('welcomeDateLine');
+            const weatherEl = document.getElementById('welcomeWeatherLine');
+            if (!dateEl || !weatherEl) return;
+            const now = new Date();
+            dateEl.textContent = now.toLocaleDateString('zh-TW', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+            const dayKey = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+            const cached = welcomeWeatherCache;
+            const cacheOk =
+                cached.text &&
+                cached.dayKey === dayKey &&
+                now.getTime() - cached.at < WELCOME_WEATHER_FETCH_MIN_MS;
+            if (cacheOk) {
+                weatherEl.textContent = cached.text;
+                return;
+            }
+            weatherEl.textContent = '天氣載入中…';
+            function applyForecast(lat, lon) {
+                fetchWelcomeWeatherLine(lat, lon)
+                    .then(function (txt) {
+                        welcomeWeatherCache = { dayKey: dayKey, at: Date.now(), text: txt };
+                        const el = document.getElementById('welcomeWeatherLine');
+                        if (el) el.textContent = txt;
+                    })
+                    .catch(function () {
+                        const el = document.getElementById('welcomeWeatherLine');
+                        if (el) el.textContent = '天氣暫時無法取得';
+                    });
+            }
+            if (!navigator.geolocation) {
+                applyForecast(WELCOME_WEATHER_FALLBACK_LAT, WELCOME_WEATHER_FALLBACK_LON);
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function (pos) {
+                    applyForecast(pos.coords.latitude, pos.coords.longitude);
+                },
+                function () {
+                    applyForecast(WELCOME_WEATHER_FALLBACK_LAT, WELCOME_WEATHER_FALLBACK_LON);
+                },
+                { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
+            );
+        }
+
+        /** 僅在詞卡區且卡片正面時顯示「首頁」鍵（歡迎畫面與翻面背面含 Easy 列時隱藏）。 */
+        function syncHomeFabVisibility() {
+            const fabHome = document.getElementById('appHomeFab');
+            if (!fabHome) return;
+            const show = studyBoardVisible && !isFlipped;
+            fabHome.classList.toggle('hidden', !show);
+            fabHome.toggleAttribute('aria-hidden', !show);
+        }
+
         function refreshStudyChrome() {
+            syncHomeFabVisibility();
             const welcomeScreen = document.getElementById('welcomeScreen');
             const footerEl = document.getElementById('appStatsFooter');
             const quizBtn = document.getElementById('quizOpenBtn');
@@ -584,7 +876,10 @@
 
             if (!studyBoardVisible) {
                 if (welcomeScreen) welcomeScreen.classList.remove('hidden');
-                if (footerEl) footerEl.classList.add('opacity-35', 'pointer-events-none');
+                if (footerEl) {
+                    footerEl.classList.add('hidden');
+                    footerEl.setAttribute('aria-hidden', 'true');
+                }
                 if (quizBtn) {
                     quizBtn.classList.add('opacity-35', 'pointer-events-none');
                     quizBtn.disabled = true;
@@ -604,13 +899,18 @@
                 if (flipRoot) flipRoot.classList.add('hidden');
                 if (emptyEl) emptyEl.classList.add('hidden');
                 if (completeEl) completeEl.classList.add('hidden');
-                /** 首頁僅展示 0000；實際紀錄仍保留於 stats／localStorage，待章節選擇或匯入後再顯示 */
-                resetStatsFooterDisplay();
+                /** 主畫面不顯示底部 Again/Hard/Good/Easy（僅進入詞卡區後才顯示） */
+                refreshWelcomeDateWeather();
+                refreshWelcomeRecentDeckGrid();
                 return;
             }
 
             if (welcomeScreen) welcomeScreen.classList.add('hidden');
-            if (footerEl) footerEl.classList.remove('opacity-35', 'pointer-events-none');
+            if (footerEl) {
+                footerEl.classList.remove('hidden');
+                footerEl.removeAttribute('aria-hidden');
+                footerEl.classList.remove('opacity-35', 'pointer-events-none');
+            }
             if (quizBtn) {
                 quizBtn.classList.remove('opacity-35', 'pointer-events-none');
                 quizBtn.disabled = baselineWords.length === 0;
@@ -681,6 +981,58 @@
             const cat = String(firebaseCategoryPrefix == null ? '' : firebaseCategoryPrefix).trim();
             if (cat) return cat + ' · ' + leaf;
             return leaf;
+        }
+
+        /** 將 `firebaseCloudProgressStorageKey` 產生的字串解析回 `{ catPrefix, dayKey }`。 */
+        function parseFirebaseCloudProgressStorageKey(progressKeyRaw) {
+            const s = String(progressKeyRaw || '').trim();
+            if (!s) return null;
+            const needle = ' · ';
+            const i = s.indexOf(needle);
+            if (i === -1) {
+                return { catPrefix: '', dayKey: s };
+            }
+            return {
+                catPrefix: s.slice(0, i).trim(),
+                dayKey: s.slice(i + needle.length).trim(),
+            };
+        }
+
+        /** 由預載／快取的 `dayPickFirebaseSnapshot` 對應到 DAY 節點。 */
+        function lookupFirebaseDayNodeForResume(catPrefix, dayKeyLeaf) {
+            const root = dayPickFirebaseSnapshot;
+            if (!root || typeof root !== 'object') return null;
+            const leaf = stripJsonExtension(String(dayKeyLeaf || '').trim());
+            if (!leaf) return null;
+            const cat = String(catPrefix == null ? '' : catPrefix).trim();
+            const sub = cat ? root[cat] : root;
+            if (!sub || typeof sub !== 'object') return null;
+            var node = sub[leaf];
+            if (node && typeof node === 'object' && isFirebaseDayChapterLeafNode(node))
+                return node;
+            return null;
+        }
+
+        function resumeFirebaseChapterFromWelcome(progressKey) {
+            const key = String(progressKey || '').trim();
+            if (!key) return;
+            const parts = parseFirebaseCloudProgressStorageKey(key);
+            if (!parts || !parts.dayKey) return;
+            if (!dayPickFirebaseSnapshot || typeof dayPickFirebaseSnapshot !== 'object') {
+                prefetchFirebaseChapterCatalog();
+                alert(
+                    '雲端詞庫快照尚未載入，請數秒後再點一次，或從選單進入「章節選擇」。'
+                );
+                return;
+            }
+            const node = lookupFirebaseDayNodeForResume(parts.catPrefix, parts.dayKey);
+            if (!node) {
+                alert(
+                    '暫時無法對應到此章節（資料可能尚未下載）；請試「章節選擇」重新進入。'
+                );
+                return;
+            }
+            applyFirebaseDayDeck(parts.dayKey, node, parts.catPrefix || '');
         }
 
         /**
@@ -886,6 +1238,9 @@
                     const val = snapshot.val();
                     dayPickFirebaseSnapshot =
                         val && typeof val === 'object' ? val : null;
+                    if (typeof studyBoardVisible !== 'undefined' && !studyBoardVisible) {
+                        refreshWelcomeRecentDeckGrid();
+                    }
                 },
                 () => {}
             );
@@ -901,6 +1256,9 @@
                     const val = snapshot.val();
                     dayPickFirebaseSnapshot =
                         val && typeof val === 'object' ? val : null;
+                    if (typeof studyBoardVisible !== 'undefined' && !studyBoardVisible) {
+                        refreshWelcomeRecentDeckGrid();
+                    }
                     if (!isDayPickOpen()) return;
 
                     const sourcePanel = document.getElementById('dayPickSourcePanel');
@@ -1077,7 +1435,7 @@
                 statusFirebase.classList.remove('text-rose-600');
                 statusFirebase.classList.add('text-slate-500');
             }
-            renderCustomDeckPickGrid();
+            refreshCustomDeckPickRelatedGrids();
         }
 
         /** 依可視寬與軌道寬度開關合併詞表 DAY 列往返動畫（每張卡片各自一套） */
@@ -1098,13 +1456,16 @@
 
         /** 全格重測：雙欄排版／字體載入後初次量測常為 0，導致只有先完成 layout 的那一張會開動畫 */
         function remeasureAllCustomDeckChipMarquees() {
-            var g = document.getElementById('dayPickCustomGrid');
-            if (!g) return;
-            g.querySelectorAll('.custom-deck-chips-wrap').forEach(function (wrapEl) {
-                var trackEl = wrapEl.querySelector(':scope > .custom-deck-chip-track');
-                if (!(trackEl instanceof HTMLElement)) return;
-                applyCustomDeckChipMarqueeSizing(wrapEl, trackEl);
-            });
+            document
+                .querySelectorAll('#dayPickCustomGrid, .home-recent-deck-subgrid')
+                .forEach(function (g) {
+                    if (!g) return;
+                    g.querySelectorAll('.custom-deck-chips-wrap').forEach(function (wrapEl) {
+                        var trackEl = wrapEl.querySelector(':scope > .custom-deck-chip-track');
+                        if (!(trackEl instanceof HTMLElement)) return;
+                        applyCustomDeckChipMarqueeSizing(wrapEl, trackEl);
+                    });
+                });
         }
 
         /** 合併自選詞表：DAY 列超寬時以 CSS 動畫左右往返（wrap 裁剪、軌道 transform） */
@@ -1134,104 +1495,127 @@
             }
         }
 
-        /** 繪製自選詞表卡片（版型與新制多益雲端章節 `renderDayPickGrid` 一致） */
-        function renderCustomDeckPickGrid() {
-            const grid = document.getElementById('dayPickCustomGrid');
-            const hint = document.getElementById('dayPickCustomHint');
-            if (!grid || !hint) return;
-
-            hint.classList.remove('text-rose-600');
-            hint.classList.add('text-slate-500');
-
-            const list = getCustomDeckListForPicker();
-            grid.innerHTML = '';
-            if (!list.length) {
-                hint.textContent = '目前沒有任何單字';
+        /**
+         * 與 overlay 自選列表相同資料，但從主畫面點卡片：不關閉 overlay（本來就未開），直接載入並進入學習。
+         */
+        function applyImportDeckFromWelcome(item) {
+            if (!applyDeckHistoryItemInner(item)) {
+                alert('此紀錄沒有單字資料。');
                 return;
             }
-            hint.textContent = '共 ' + list.length + ' 個詞表，請點選開始';
+            enterStudyBoard();
+        }
 
-            list.forEach((item) => {
-                const info = getImportDeckCardInfo(item);
-                const titleText = formatCustomDeckCardTitle(item.displayName);
+        /**
+         * 自選歷史卡片 DOM（overlay「自選單字」與主畫面「最近學習」共用）。
+         * @param {'picker'|'welcome'} deckCardCtx
+         */
+        function buildCustomDeckHistoryCardElement(item, deckCardCtx) {
+            const info = getImportDeckCardInfo(item);
+            const titleText = formatCustomDeckCardTitle(item.displayName);
+            const isWelcomeCloudResume =
+                deckCardCtx === 'welcome' && item && item.__homeFirebaseResume === true;
 
-                const wrap = document.createElement('div');
-                wrap.className =
-                    'relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-100/80 outline-none transition-shadow transition-colors hover:border-indigo-200/90 hover:bg-indigo-50/80 hover:shadow-md active:bg-indigo-100/70 touch-manipulation focus-visible:ring-2 focus-visible:ring-indigo-400';
-                wrap.tabIndex = 0;
-                wrap.setAttribute('role', 'button');
+            function openFromDeckCard(itemRef) {
+                if (deckCardCtx === 'picker') applyImportDeckFromPicker(itemRef);
+                else if (itemRef.__homeFirebaseResume === true) {
+                    resumeFirebaseChapterFromWelcome(
+                        String(itemRef.displayName || '').trim()
+                    );
+                } else applyImportDeckFromWelcome(itemRef);
+            }
 
-                wrap.addEventListener('click', (e) => {
-                    const n = e.target;
-                    const fromCtl =
-                        n instanceof Element
-                            ? n.closest('.chapter-reset-btn') || n.closest('.custom-deck-delete-btn')
-                            : n &&
-                              n.parentElement &&
-                              (n.parentElement.closest('.chapter-reset-btn') ||
-                                  n.parentElement.closest('.custom-deck-delete-btn'));
-                    if (fromCtl) return;
-                    applyImportDeckFromPicker(item);
-                });
-                wrap.addEventListener('keydown', (e) => {
-                    const n = e.target;
-                    const fromCtl =
-                        n instanceof Element
-                            ? n.closest('.chapter-reset-btn') || n.closest('.custom-deck-delete-btn')
-                            : n &&
-                              n.parentElement &&
-                              (n.parentElement.closest('.chapter-reset-btn') ||
-                                  n.parentElement.closest('.custom-deck-delete-btn'));
-                    if (fromCtl) return;
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        applyImportDeckFromPicker(item);
-                    }
-                });
+            const wrap = document.createElement('div');
+            wrap.className =
+                'relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-100/80 outline-none transition-shadow transition-colors hover:border-indigo-200/90 hover:bg-indigo-50/80 hover:shadow-md active:bg-indigo-100/70 touch-manipulation focus-visible:ring-2 focus-visible:ring-indigo-400';
+            wrap.tabIndex = 0;
+            wrap.setAttribute('role', 'button');
 
-                const mergedMeta = getCustomDeckMergedChipsMeta(item);
+            wrap.addEventListener('click', (e) => {
+                const n = e.target;
+                const fromCtl =
+                    n instanceof Element
+                        ? n.closest('.chapter-reset-btn') ||
+                          n.closest('.custom-deck-delete-btn')
+                        : n &&
+                          n.parentElement &&
+                          (n.parentElement.closest('.chapter-reset-btn') ||
+                              n.parentElement.closest('.custom-deck-delete-btn'));
+                if (fromCtl) return;
+                openFromDeckCard(item);
+            });
+            wrap.addEventListener('keydown', (e) => {
+                const n = e.target;
+                const fromCtl =
+                    n instanceof Element
+                        ? n.closest('.chapter-reset-btn') ||
+                          n.closest('.custom-deck-delete-btn')
+                        : n &&
+                          n.parentElement &&
+                          (n.parentElement.closest('.chapter-reset-btn') ||
+                              n.parentElement.closest('.custom-deck-delete-btn'));
+                if (fromCtl) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openFromDeckCard(item);
+                }
+            });
 
-                const headerRow = document.createElement('div');
-                headerRow.className =
-                    'flex shrink-0 items-start justify-between gap-2 px-3.5 pb-1 pt-3.5';
+            const mergedMeta = getCustomDeckMergedChipsMeta(item);
 
-                const resetBtn = document.createElement('button');
-                resetBtn.type = 'button';
-                resetBtn.className =
-                    'chapter-reset-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
-                resetBtn.setAttribute('aria-label', '重置「' + titleText + '」學習進度');
-                resetBtn.innerHTML =
-                    '<i class="ph ph-arrow-counter-clockwise block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
-                resetBtn.addEventListener('click', (ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    resetImportDeckChapter(item.displayName);
-                });
+            const headerRow = document.createElement('div');
+            headerRow.className =
+                deckCardCtx === 'welcome'
+                    ? 'flex shrink-0 items-center justify-between gap-2 px-3.5 pb-1 pt-3.5'
+                    : 'flex shrink-0 items-start justify-between gap-2 px-3.5 pb-1 pt-3.5';
 
-                const delBtn = document.createElement('button');
-                delBtn.type = 'button';
-                delBtn.className =
-                    'custom-deck-delete-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
-                delBtn.setAttribute('aria-label', '從列表刪除「' + titleText + '」');
-                delBtn.innerHTML =
-                    '<i class="ph ph-trash block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
-                delBtn.addEventListener('click', (ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    removeDeckFromHistory(item.displayName);
-                });
+            const resetBtn = document.createElement('button');
+            resetBtn.type = 'button';
+            resetBtn.className =
+                'chapter-reset-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
+            resetBtn.setAttribute('aria-label', '重置「' + titleText + '」學習進度');
+            resetBtn.innerHTML =
+                '<i class="ph ph-arrow-counter-clockwise block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
+            resetBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (isWelcomeCloudResume) {
+                    const pk = parseFirebaseCloudProgressStorageKey(item.displayName);
+                    if (pk) resetCloudDayChapter(pk.dayKey, pk.catPrefix);
+                    return;
+                }
+                resetImportDeckChapter(item.displayName);
+            });
 
-                const actions = document.createElement('div');
-                actions.className =
-                    'flex shrink-0 flex-col items-center gap-0.5 self-start pt-0.5';
-                actions.appendChild(resetBtn);
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className =
+                'custom-deck-delete-btn shrink-0 rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 active:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 touch-manipulation';
+            delBtn.setAttribute('aria-label', '從列表刪除「' + titleText + '」');
+            delBtn.innerHTML =
+                '<i class="ph ph-trash block text-lg leading-none sm:text-xl" aria-hidden="true"></i>';
+            delBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                removeDeckFromHistory(item.displayName);
+            });
+
+            const actions = document.createElement('div');
+            actions.className =
+                deckCardCtx === 'welcome'
+                    ? 'flex shrink-0 items-center gap-1'
+                    : 'flex shrink-0 flex-col items-center gap-0.5 self-start pt-0.5';
+            actions.appendChild(resetBtn);
+            if (!isWelcomeCloudResume) {
                 actions.appendChild(delBtn);
+            }
 
-                if (mergedMeta && mergedMeta.dayKeys.length) {
-                    const leftCol = document.createElement('div');
-                    leftCol.className =
-                        'min-w-0 flex flex-1 flex-col gap-1.5 pr-1';
+            if (mergedMeta && mergedMeta.dayKeys.length) {
+                const leftCol = document.createElement('div');
+                leftCol.className =
+                    'min-w-0 flex flex-1 flex-col gap-1.5 pr-1';
 
+                if (deckCardCtx !== 'welcome') {
                     const titleRow = document.createElement('div');
                     titleRow.className = 'min-w-0 w-full';
                     const titleShort = document.createElement('span');
@@ -1241,47 +1625,79 @@
                         mergedMeta.categoryKey
                     );
                     titleRow.appendChild(titleShort);
-
-                    const badgeRow = document.createElement('div');
-                    badgeRow.className =
-                        'flex min-w-0 flex-wrap items-center gap-2';
-                    const badge = document.createElement('span');
-                    badge.className =
-                        'inline-flex shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800 tabular-nums';
-                    badge.textContent = mergedMeta.dayKeys.length + ' 章';
-                    badgeRow.appendChild(badge);
-
-                    const chipsWrap = document.createElement('div');
-                    chipsWrap.className = 'custom-deck-chips-wrap min-w-0 w-full overflow-hidden pb-0.5';
-                    const chipsTrack = document.createElement('div');
-                    chipsTrack.className =
-                        'custom-deck-chip-track flex w-max gap-1.5';
-                    mergedMeta.dayKeys.forEach(function (dk) {
-                        const chip = document.createElement('span');
-                        chip.className =
-                            'shrink-0 rounded-full border border-indigo-200/80 bg-indigo-50/90 px-2 py-0.5 text-[11px] font-semibold text-indigo-900';
-                        chip.textContent = dk;
-                        chipsTrack.appendChild(chip);
-                    });
-                    chipsWrap.appendChild(chipsTrack);
-
                     leftCol.appendChild(titleRow);
-                    leftCol.appendChild(badgeRow);
-                    leftCol.appendChild(chipsWrap);
-                    headerRow.appendChild(leftCol);
-                    setupCustomDeckMergedChipRowMarquee(chipsWrap, chipsTrack);
-                } else {
-                    const titleEl = document.createElement('span');
-                    titleEl.className =
-                        'min-w-0 flex-1 whitespace-normal break-words text-base font-bold leading-snug text-indigo-900 pr-1';
-                    titleEl.textContent = titleText;
-                    headerRow.appendChild(titleEl);
                 }
 
-                headerRow.appendChild(actions);
+                const badgeRow = document.createElement('div');
+                badgeRow.className =
+                    'flex min-w-0 flex-wrap items-center gap-2';
+                const badge = document.createElement('span');
+                badge.className =
+                    'inline-flex shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800 tabular-nums';
+                badge.textContent = mergedMeta.dayKeys.length + ' 章';
+                badgeRow.appendChild(badge);
 
-                const lastTitle = escapeHtml(info.lastLine || '');
-                const bodyEl = document.createElement('div');
+                const chipsWrap = document.createElement('div');
+                chipsWrap.className =
+                    'custom-deck-chips-wrap min-w-0 w-full overflow-hidden pb-0.5';
+                const chipsTrack = document.createElement('div');
+                chipsTrack.className =
+                    'custom-deck-chip-track flex w-max gap-1.5';
+                mergedMeta.dayKeys.forEach(function (dk) {
+                    const chip = document.createElement('span');
+                    chip.className =
+                        'shrink-0 rounded-full border border-indigo-200/80 bg-indigo-50/90 px-2 py-0.5 text-[11px] font-semibold text-indigo-900';
+                    chip.textContent = dk;
+                    chipsTrack.appendChild(chip);
+                });
+                chipsWrap.appendChild(chipsTrack);
+
+                leftCol.appendChild(badgeRow);
+                leftCol.appendChild(chipsWrap);
+                headerRow.appendChild(leftCol);
+                setupCustomDeckMergedChipRowMarquee(chipsWrap, chipsTrack);
+            } else {
+                const titleEl = document.createElement('span');
+                titleEl.className =
+                    deckCardCtx === 'welcome'
+                        ? 'min-w-0 flex-1 truncate text-base font-bold leading-tight text-indigo-900'
+                        : 'min-w-0 flex-1 whitespace-normal break-words text-base font-bold leading-snug text-indigo-900 pr-1';
+                if (deckCardCtx === 'welcome' && isWelcomeCloudResume) {
+                    const pk = parseFirebaseCloudProgressStorageKey(item.displayName);
+                    titleEl.textContent = pk
+                        ? stripJsonExtension(pk.dayKey)
+                        : titleText;
+                } else {
+                    titleEl.textContent = titleText;
+                }
+                headerRow.appendChild(titleEl);
+            }
+
+            headerRow.appendChild(actions);
+
+            const lastTitle = escapeHtml(info.lastLine || '');
+            const bodyEl = document.createElement('div');
+            if (deckCardCtx === 'welcome') {
+                bodyEl.className =
+                    'flex shrink-0 flex-col gap-2 px-3.5 pb-3.5 pt-2 min-h-[5.5rem] [&_p.firebase-day-card-preview]:break-words [&_p.firebase-day-card-preview]:hyphens-auto';
+                bodyEl.innerHTML =
+                    '<div class="flex min-w-0 flex-col gap-0.5 text-left text-[11px]">' +
+                    '<span class="text-slate-500">學習進度</span>' +
+                    '<span class="font-semibold tabular-nums text-slate-700">' +
+                    escapeHtml(info.progressLine) +
+                    ' · ' +
+                    info.pct +
+                    '%</span></div>' +
+                    '<div class="h-2 w-full shrink-0 overflow-hidden rounded-full bg-slate-200">' +
+                    '<div class="h-full rounded-full bg-indigo-500 transition-all duration-300" style="width:' +
+                    info.pct +
+                    '%"></div></div>' +
+                    '<p class="firebase-day-card-preview mt-auto min-h-[1.375rem] whitespace-normal pt-0.5 text-sm font-medium leading-snug text-slate-800 line-clamp-5" title="' +
+                    lastTitle +
+                    '">' +
+                    escapeHtml(info.lastLine) +
+                    '</p>';
+            } else {
                 bodyEl.className =
                     'flex shrink-0 flex-col gap-2 px-3.5 pb-3.5 pt-2 min-h-[5.5rem]';
                 bodyEl.innerHTML =
@@ -1301,10 +1717,168 @@
                     '">' +
                     escapeHtml(info.lastLine) +
                     '</p>';
+            }
+            wrap.appendChild(headerRow);
+            wrap.appendChild(bodyEl);
+            return wrap;
+        }
 
-                wrap.appendChild(headerRow);
-                wrap.appendChild(bodyEl);
-                grid.appendChild(wrap);
+        /** 供「最近學習」排序：同一牌組以最後一次 persist（學習互動）時間為準。 */
+        function readWelcomeStorageTouchMeta() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const o = JSON.parse(raw);
+                if (o.v !== 2 || !o.deckDisplayName) return null;
+                const name = String(o.deckDisplayName || '').trim();
+                if (!name) return null;
+                return {
+                    deckDisplayName: name,
+                    deckSource: o.deckSource === 'firebase' ? 'firebase' : 'import',
+                    lastStudiedAt: Number(o.lastStudiedAt) || 0,
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        /** 主畫面「最近學習」：自選歷程 + 雲端 DAY 進度（localStorage）合併排序。 */
+        function getMergedWelcomeRecentDeckRows() {
+            const rows = [];
+            const touchMeta = readWelcomeStorageTouchMeta();
+            getCustomDeckListForPicker().forEach(function (entry) {
+                if (!welcomeRecentActivityQualifies(entry)) return;
+                const nm = String(entry.displayName || '').trim();
+                let touch = Number(entry.savedAt) || 0;
+                if (touchMeta && touchMeta.deckSource === 'import' && nm === touchMeta.deckDisplayName) {
+                    touch = Math.max(touch, touchMeta.lastStudiedAt || 0);
+                }
+                rows.push({
+                    savedAt: touch,
+                    item: entry,
+                });
+            });
+            const cloudMap = loadCloudDayProgressMap();
+            if (cloudMap && typeof cloudMap === 'object') {
+                Object.keys(cloudMap).forEach(function (progressKey) {
+                    const snapCloud = cloudMap[progressKey];
+                    if (!snapCloud || typeof snapCloud !== 'object') return;
+                    if (!Array.isArray(snapCloud.baselineWords) || !snapCloud.baselineWords.length)
+                        return;
+                    if (!Array.isArray(snapCloud.wordsList)) return;
+                    const snap = pickBetterFirebaseProgressSnap(
+                        snapCloud,
+                        readStorageFirebaseSnapshotForKey(progressKey),
+                        null
+                    );
+                    if (!snap) return;
+                    const statsObj =
+                        snap.stats && typeof snap.stats === 'object'
+                            ? snap.stats
+                            : { again: 0, hard: 0, good: 0, easy: 0 };
+                    const pseudo = {
+                        displayName: progressKey,
+                        source: 'firebase',
+                        baselineWords: snap.baselineWords,
+                        wordsList: snap.wordsList,
+                        stats: statsObj,
+                        savedAt: Number(snap.savedAt) || 0,
+                        initialTotal: snap.baselineWords.length,
+                        __homeFirebaseResume: true,
+                    };
+                    if (!welcomeRecentActivityQualifies(pseudo)) return;
+                    let touch = Number(snap.savedAt) || 0;
+                    if (
+                        touchMeta &&
+                        touchMeta.deckSource === 'firebase' &&
+                        String(progressKey).trim() === touchMeta.deckDisplayName
+                    ) {
+                        touch = Math.max(touch, touchMeta.lastStudiedAt || 0);
+                    }
+                    rows.push({
+                        savedAt: touch,
+                        item: pseudo,
+                    });
+                });
+            }
+            rows.sort(function (a, b) {
+                return b.savedAt - a.savedAt;
+            });
+            return rows.slice(0, HOME_RECENT_DECKS_MAX);
+        }
+
+        /** 主畫面歡迎區：最近學習依「大分類」分區，標題獨一行、其下為雙欄卡片。 */
+        function refreshWelcomeRecentDeckGrid() {
+            const host = document.getElementById('homeRecentDeckHost');
+            const empty = document.getElementById('homeRecentDeckEmpty');
+            if (!host || !empty) return;
+            const mergedRows = getMergedWelcomeRecentDeckRows();
+            host.innerHTML = '';
+            if (!mergedRows.length) {
+                empty.classList.remove('hidden');
+                host.classList.add('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            host.classList.remove('hidden');
+            buildWelcomeRecentGroupedBuckets(mergedRows).forEach(function (bucket) {
+                const heading = document.createElement('p');
+                heading.className =
+                    'shrink-0 min-w-0 truncate text-sm font-bold leading-snug text-indigo-900 border-b border-slate-100/90 pb-1.5';
+                heading.textContent = bucket.groupLabelLine;
+
+                const subGrid = document.createElement('div');
+                subGrid.className =
+                    'home-recent-deck-subgrid firebase-day-pick-grid grid grid-cols-2 items-start gap-3 auto-rows-min sm:gap-4 pb-2 [align-content:start]';
+
+                bucket.rows.forEach(function (row) {
+                    subGrid.appendChild(buildCustomDeckHistoryCardElement(row.item, 'welcome'));
+                });
+                host.appendChild(heading);
+                host.appendChild(subGrid);
+            });
+            remeasureAllCustomDeckChipMarquees();
+            requestAnimationFrame(function () {
+                remeasureAllCustomDeckChipMarquees();
+            });
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    remeasureAllCustomDeckChipMarquees();
+                });
+            });
+            setTimeout(remeasureAllCustomDeckChipMarquees, 0);
+            setTimeout(remeasureAllCustomDeckChipMarquees, 120);
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready
+                    .then(remeasureAllCustomDeckChipMarquees)
+                    .catch(function () {});
+            }
+        }
+
+        function refreshCustomDeckPickRelatedGrids() {
+            renderCustomDeckPickGrid();
+            refreshWelcomeRecentDeckGrid();
+        }
+
+        /** 繪製自選詞表卡片（版型與新制多益雲端章節 `renderDayPickGrid` 一致） */
+        function renderCustomDeckPickGrid() {
+            const grid = document.getElementById('dayPickCustomGrid');
+            const hint = document.getElementById('dayPickCustomHint');
+            if (!grid || !hint) return;
+
+            hint.classList.remove('text-rose-600');
+            hint.classList.add('text-slate-500');
+
+            const list = getCustomDeckListForPicker();
+            grid.innerHTML = '';
+            if (!list.length) {
+                hint.textContent = '目前沒有任何單字';
+                return;
+            }
+            hint.textContent = '共 ' + list.length + ' 個詞表，請點選開始';
+
+            list.forEach((item) => {
+                grid.appendChild(buildCustomDeckHistoryCardElement(item, 'picker'));
             });
             remeasureAllCustomDeckChipMarquees();
             requestAnimationFrame(function () {
@@ -1386,6 +1960,7 @@
                 refreshStudyChrome();
             }
             refreshFirebaseDayPickerGrid();
+            refreshWelcomeRecentDeckGrid();
         }
 
         /** 離開複選／合併條時僅清除狀態（例如已離開 DAY 面板，不必 redraw）。 */
@@ -1524,7 +2099,6 @@
                     mergedRaw.length +
                     ' 詞），進度與雲端原章節分開。';
             }
-            renderCustomDeckPickGrid();
         }
 
         function bindFirebaseChapterDayCardGestures(wrap, dayKey, node, catPrefix) {
@@ -1765,9 +2339,12 @@
             const newBaseline = raw.map(normalizeEntry).filter((w) => w.keyword);
             closeDayPickOverlay();
 
-            const snap = getCloudDayProgress(progressKey);
+            /** 進度只存在本機；Firebase 僅更新單字內容。擇優合併兩份 local 快照時勿用線上詞數當仲裁。 */
+            const snapCloud = getCloudDayProgress(progressKey);
+            const snapStorage = readStorageFirebaseSnapshotForKey(progressKey);
+            const snap = pickBetterFirebaseProgressSnap(snapCloud, snapStorage, null);
 
-            if (!snap || !snap.stats) {
+            if (!snap) {
                 applyImportedDeck(raw, dayKey, {
                     source: 'firebase',
                     firebaseDeckDisplayName: progressKey,
@@ -1775,29 +2352,20 @@
                 return;
             }
 
-            const oldB = snap.baselineWords.map(normalizeEntry).filter((w) => w.keyword);
-            const oldK = new Set(oldB.map((w) => w.keyword));
-            const newK = new Set(newBaseline.map((w) => w.keyword));
-            let inter = 0;
-            for (const k of oldK) {
-                if (newK.has(k)) inter++;
-            }
+            const snapStats =
+                snap.stats && typeof snap.stats === 'object'
+                    ? snap.stats
+                    : { again: 0, hard: 0, good: 0, easy: 0 };
 
             baselineWords = newBaseline;
             initialTotal = baselineWords.length;
             deckSource = 'firebase';
             currentDeckDisplayName = progressKey;
-
-            if (inter === 0) {
-                wordsList = newBaseline.slice();
-                stats.again = stats.hard = stats.good = stats.easy = 0;
-            } else {
-                wordsList = mergeWordsQueueWithNewBaseline(snap.wordsList, newBaseline);
-                stats.again = Number(snap.stats.again) || 0;
-                stats.hard = Number(snap.stats.hard) || 0;
-                stats.good = Number(snap.stats.good) || 0;
-                stats.easy = Number(snap.stats.easy) || 0;
-            }
+            wordsList = mergeWordsQueueWithNewBaseline(snap.wordsList, newBaseline);
+            stats.again = Number(snapStats.again) || 0;
+            stats.hard = Number(snapStats.hard) || 0;
+            stats.good = Number(snapStats.good) || 0;
+            stats.easy = Number(snapStats.easy) || 0;
 
             isFlipped = false;
             resetFlip();
@@ -1922,7 +2490,7 @@
                 if (initialTotal === 0) {
                     wordsList = [];
                 } else {
-                    wordsList = o.wordsList.map(normalizeEntry).filter(w => w.keyword);
+                    wordsList = sanitizeWordsListFromBaseline(o.wordsList, baselineWords);
                 }
                 currentDeckDisplayName = typeof o.deckDisplayName === 'string' ? o.deckDisplayName : '';
                 deckSource = o.deckSource === 'firebase' ? 'firebase' : 'import';
@@ -1946,6 +2514,7 @@
                     wordsList,
                     deckDisplayName: currentDeckDisplayName,
                     deckSource: deckSource === 'firebase' ? 'firebase' : 'import',
+                    lastStudiedAt: Date.now(),
                     stats: {
                         again: stats.again,
                         hard: stats.hard,
@@ -2223,10 +2792,7 @@
                 persistState();
                 refreshStudyChrome();
             }
-            const customPanel = document.getElementById('dayPickCustomPanel');
-            if (customPanel && !customPanel.classList.contains('hidden')) {
-                renderCustomDeckPickGrid();
-            }
+            refreshCustomDeckPickRelatedGrids();
         }
 
         /** 從自選列表移除紀錄；若為目前正載入的 import 牌組則清空學習畫面。 */
@@ -2274,10 +2840,7 @@
                 updateStatsUi();
                 leaveStudyBoard();
             }
-            const customPanel = document.getElementById('dayPickCustomPanel');
-            if (customPanel && !customPanel.classList.contains('hidden')) {
-                renderCustomDeckPickGrid();
-            }
+            refreshCustomDeckPickRelatedGrids();
         }
 
         /** 章節選擇「自選單字」清單：歷程＋本機 STORAGE 已還原但尚未寫入歷程的匯入牌組 */
@@ -2309,9 +2872,14 @@
         }
 
         function sanitizeWordsListFromBaseline(wl, baseline) {
-            const allowed = new Set(baseline.map((w) => w.keyword));
+            const base = (baseline || []).map(normalizeEntry).filter((w) => w.keyword);
+            if (!base.length) return [];
+            const allowed = new Set(base.map((w) => w.keyword));
             const raw = (wl || []).map(normalizeEntry).filter((w) => w.keyword && allowed.has(w.keyword));
-            return raw.length ? raw : baseline.slice();
+            if (raw.length > 0) return raw;
+            /** 空隊列＝已完成或尚未寫入 wordsList；不可還原成整副牌（否則進度條與評分會不一致） */
+            const hadRows = Array.isArray(wl) && wl.length > 0;
+            return hadRows ? base.slice() : [];
         }
 
         function getImportDeckCardInfo(entry) {
@@ -2324,28 +2892,92 @@
                     ? sanitizeWordsListFromBaseline(entry.wordsList, base)
                     : base.slice();
             const remaining = wl.length;
-            const done = Math.max(0, Math.min(denom, denom - remaining));
             const st = entry.stats && typeof entry.stats === 'object' ? entry.stats : {};
-            /** Again/Hard/Good 不會立刻縮短隊列（done 常仍為 0），須結合評分次數辨識是否真的「開始過」 */
+            /** 卡片「進度」與詞條佇列脫钩：一律以本機 stats.easy／總詞數呈現（Firebase 只提供詞，不紀錄進度） */
+            const easyN = Math.max(0, Number(st.easy) || 0);
+            const doneDisplay = Math.min(denom, easyN);
             const ratingCount =
                 (Number(st.again) || 0) +
                 (Number(st.hard) || 0) +
                 (Number(st.good) || 0) +
-                (Number(st.easy) || 0);
-            const pct = Math.min(100, Math.max(0, Math.round((done / denom) * 100)));
+                easyN;
+            const pct = Math.min(100, Math.max(0, Math.round((doneDisplay / denom) * 100)));
             let lastLine = '尚未開始';
-            if (remaining === 0 && base.length > 0) {
+            const queueFinished = remaining === 0 && base.length > 0;
+            if (easyN >= denom || queueFinished) {
                 lastLine = '已完成本章';
-            } else if (remaining > 0 && done === 0 && ratingCount === 0) {
+            } else if (remaining > 0 && ratingCount === 0) {
                 lastLine = '尚未開始';
             } else if (remaining > 0 && wl[0]) {
                 lastLine = String(wl[0].keyword ?? '').trim() || '⋯';
             }
             return {
                 pct,
-                progressLine: done + ' / ' + denom,
+                progressLine: doneDisplay + ' / ' + denom,
                 lastLine,
             };
+        }
+
+        /** 主畫面「最近學習」僅顯示已開打或已完成的紀錄（排除純「尚未開始」）。 */
+        function welcomeRecentActivityQualifies(entry) {
+            return getImportDeckCardInfo(entry).lastLine !== '尚未開始';
+        }
+
+        /** 主畫面分組用：回傳穩定 groupKey 與標題列文字（大分類單獨一行，不寫進卡片內）。 */
+        function getWelcomeDeckGroupMetaForItem(item) {
+            if (item && item.__homeFirebaseResume === true) {
+                const pk = parseFirebaseCloudProgressStorageKey(item.displayName);
+                const cat = pk && pk.catPrefix ? String(pk.catPrefix).trim() : '';
+                /** 無 `書名 · DAY` 前綴的舊鍵：與章節選單預設大全名合併為同一區（避免出現「雲端章節」）。 */
+                const label = cat || FIREBASE_TOEIC_BOOK_DISPLAY_NAME;
+                return {
+                    groupKey: 'fb:' + label,
+                    groupLabelLine: label,
+                };
+            }
+            const mm = getCustomDeckMergedChipsMeta(item);
+            if (mm && mm.dayKeys.length) {
+                const line =
+                    mm.categoryKey && String(mm.categoryKey).trim()
+                        ? String(mm.categoryKey).trim()
+                        : '自選合併';
+                return {
+                    groupKey: 'merged:' + line,
+                    groupLabelLine: line,
+                };
+            }
+            return {
+                groupKey: 'local:custom',
+                groupLabelLine: CUSTOM_DECK_BAR_LINE,
+            };
+        }
+
+        function buildWelcomeRecentGroupedBuckets(rows) {
+            const m = new Map();
+            rows.forEach(function (row) {
+                const meta = getWelcomeDeckGroupMetaForItem(row.item);
+                const key = meta.groupKey;
+                if (!m.has(key)) {
+                    m.set(key, {
+                        groupLabelLine: meta.groupLabelLine,
+                        maxSavedAt: 0,
+                        rows: [],
+                    });
+                }
+                const b = m.get(key);
+                b.rows.push(row);
+                b.maxSavedAt = Math.max(b.maxSavedAt, Number(row.savedAt) || 0);
+            });
+            const buckets = Array.from(m.values());
+            buckets.forEach(function (b) {
+                b.rows.sort(function (a, c) {
+                    return (Number(c.savedAt) || 0) - (Number(a.savedAt) || 0);
+                });
+            });
+            buckets.sort(function (a, b) {
+                return b.maxSavedAt - a.maxSavedAt;
+            });
+            return buckets;
         }
 
         function applyDeckHistoryItemInner(item) {
@@ -2410,7 +3042,7 @@
         }
 
         /**
-         * 章節選擇格子：進度（已處理／分母）、百分比、隊列最前單字（下一張要打分的）。
+         * 章節選擇格子：本機 Easy 次數／總詞數、百分比、佇列最前單字（下一張）。
          */
         function getCloudChapterPickerInfo(dayKey, dayNode, cloudMap, firebaseCategoryPrefix) {
             const catPrefix =
@@ -2419,13 +3051,18 @@
                     : String(firebaseCategoryPrefix);
             const progressKey = firebaseCloudProgressStorageKey(catPrefix, dayKey);
             const totalLive = countEntriesInFirebaseDayNode(dayNode);
-            const snap =
+            const snapCloud =
                 cloudMap &&
                 typeof cloudMap === 'object' &&
                 cloudMap[progressKey] &&
                 typeof cloudMap[progressKey] === 'object'
                     ? cloudMap[progressKey]
                     : null;
+            const snap = pickBetterFirebaseProgressSnap(
+                snapCloud,
+                readStorageFirebaseSnapshotForKey(progressKey),
+                null
+            );
             if (!snap || !Array.isArray(snap.wordsList) || !Array.isArray(snap.baselineWords)) {
                 const n = Math.max(0, totalLive);
                 return {
@@ -2435,33 +3072,37 @@
                     lastKw: '',
                 };
             }
-            const remaining = snap.wordsList.length;
-            const baseLen = snap.baselineWords.length;
+            const baseArr = snap.baselineWords.map(normalizeEntry).filter((w) => w.keyword);
+            const wlSanitized = sanitizeWordsListFromBaseline(snap.wordsList, baseArr);
+            const remaining = wlSanitized.length;
+            const baseLen = baseArr.length;
             const denom = Math.max(totalLive || 0, baseLen || 0, 1);
-            const done = Math.max(0, Math.min(denom, denom - remaining));
             const st = snap.stats && typeof snap.stats === 'object' ? snap.stats : {};
+            const easyN = Math.max(0, Number(st.easy) || 0);
+            const doneDisplay = Math.min(denom, easyN);
             const ratingCount =
                 (Number(st.again) || 0) +
                 (Number(st.hard) || 0) +
                 (Number(st.good) || 0) +
-                (Number(st.easy) || 0);
-            const pct = Math.min(100, Math.max(0, Math.round((done / denom) * 100)));
+                easyN;
+            const pct = Math.min(100, Math.max(0, Math.round((doneDisplay / denom) * 100)));
             let lastLine = '尚未開始';
             let lastKw = '';
-            if (remaining === 0 && baseLen > 0) {
+            const queueFinished = remaining === 0 && baseLen > 0;
+            if (easyN >= denom || queueFinished) {
                 lastLine = '已完成本章';
-            } else if (remaining > 0 && done === 0 && ratingCount === 0) {
+            } else if (remaining > 0 && ratingCount === 0) {
                 /** 與無快照／重製後一致；但一旦打過任一評分就不再顯示「尚未開始」 */
                 lastLine = '尚未開始';
                 lastKw = '';
             } else if (remaining > 0) {
-                const w0 = snap.wordsList[0];
+                const w0 = wlSanitized[0];
                 lastKw = w0 && typeof w0 === 'object' ? String(w0.keyword ?? w0.word ?? '').trim() : '';
                 lastLine = lastKw || '⋯';
             }
             return {
                 pct,
-                progressLine: done + ' / ' + denom,
+                progressLine: doneDisplay + ' / ' + denom,
                 lastLine,
                 lastKw,
             };
@@ -2993,6 +3634,7 @@
                 frontFace.classList.remove('pointer-events-none');
                 backFace.classList.add('pointer-events-none');
             }
+            syncHomeFabVisibility();
         }
 
         function resetFlip() {
@@ -3003,6 +3645,7 @@
             if (flipRoot) flipRoot.classList.remove('rotate-y-180');
             if (frontFace) frontFace.classList.remove('pointer-events-none');
             if (backFace) backFace.classList.add('pointer-events-none');
+            syncHomeFabVisibility();
         }
 
         function renderCard() {
@@ -3314,24 +3957,15 @@
             prependImportedDeckToHistoryFromRaw(mergedRaw, displayName);
 
             closeMenu();
-            if (importUi === 'overlayCustom') {
-                const customPanel = document.getElementById('dayPickCustomPanel');
+            if (importUi !== 'overlayCustom') {
                 const ov = document.getElementById('dayPickOverlay');
-                if (
-                    customPanel &&
-                    !customPanel.classList.contains('hidden') &&
-                    ov &&
-                    !ov.classList.contains('hidden')
-                ) {
-                    renderCustomDeckPickGrid();
+                if (ov) {
+                    prepareDayPickSourceStep();
+                    ov.classList.remove('hidden');
+                    openCustomWordListPanel();
                 }
-            } else {
-                const ov = document.getElementById('dayPickOverlay');
-                if (!ov) return;
-                prepareDayPickSourceStep();
-                ov.classList.remove('hidden');
-                openCustomWordListPanel();
             }
+            refreshCustomDeckPickRelatedGrids();
 
             if (errors.length) {
                 alert('以下檔案未併入（其餘已成功加入自選列表）：\n' + errors.join('\n'));
@@ -3375,6 +4009,11 @@
         document.getElementById('menuFirebaseChapterBtn').addEventListener('click', (e) => {
             e.stopPropagation();
             openDayChapterPicker();
+        });
+        document.getElementById('appHomeFab').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            goToHomeScreen();
         });
         document.getElementById('dayPickBackBtn').addEventListener('click', () => goDayPickBack());
         document.getElementById('dayPickCustomDeckBtn').addEventListener('click', () => {
