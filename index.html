@@ -6,8 +6,24 @@
     <title>VocaUp</title>
     <meta name="theme-color" content="#f8fafc">
     <meta name="apple-mobile-web-app-title" content="VocaUp">
-    <link rel="icon" type="image/png" href="icon.png">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png" sizes="512x512">
+    <link rel="icon" type="image/png" href="icon.png" sizes="32x32">
+    <link rel="shortcut icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png" sizes="180x180">
+    <script>
+    (function () {
+        try {
+            var abs = new URL('icon.png', document.URL).href;
+            document.querySelectorAll(
+                'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+            ).forEach(function (el) {
+                var h = el.getAttribute('href');
+                if (h === 'icon.png' || (h && h.endsWith('/icon.png')))
+                    el.setAttribute('href', abs);
+            });
+        } catch (_) {}
+    })();
+    </script>
     <!-- file:// 無法載入 manifest（CORS origin null）；僅在 http/https 註冊 PWA -->
     <script>
     (function () {
