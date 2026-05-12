@@ -413,8 +413,9 @@
                                 <p id="quizFeedbackWrongLine" class="hidden text-sm text-slate-700 card-prose-wrap max-w-full">
                                     正確答案：<span id="quizAnswerReveal" class="font-semibold text-indigo-800"></span>
                                 </p>
+                                <p id="quizFeedbackZhLine" class="hidden text-sm text-slate-600 card-prose-wrap max-w-full leading-relaxed"></p>
                             </div>
-                            <p id="quizNextHint" class="hidden text-sm text-slate-400 mt-3 text-center">點一下進入下一題</p>
+                            <p id="quizNextHint" class="hidden text-sm text-slate-400 mt-3 text-center">按 Enter 或點一下進入下一題</p>
                         </div>
                     </div>
                 </div>
@@ -3245,16 +3246,25 @@
         let quizIndex = 0;
         let quizPhase = 'idle';
         let quizCurrentKeyword = '';
+        let quizWrongRecords = [];
 
         function isQuizOpen() {
             const el = document.getElementById('quizOverlay');
             return el && !el.classList.contains('hidden');
         }
 
+        /** 測驗輸入僅接受英文字母與常見英文連字符號（空白供片語使用） */
+        function sanitizeQuizInputText(s) {
+            return String(s || '').replace(/[^A-Za-z'\- ]/g, '');
+        }
+
         function wireQuizMidCells(cells) {
             cells.forEach((cell, j) => {
                 cell.addEventListener('keydown', (e) => {
-                    if (e.key === 'Backspace' && !cell.value) {
+                    if (e.key === 'Backspace') {
+                        if (cell.value) {
+                            cell.value = '';
+                        }
                         if (j > 0) {
                             cells[j - 1].focus();
                             cells[j - 1].select();
@@ -3276,7 +3286,8 @@
                     }
                 });
                 cell.addEventListener('input', () => {
-                    let v = cell.value;
+                    let v = sanitizeQuizInputText(cell.value).replace(/ /g, '');
+                    cell.value = v;
                     if (v.length > 1) {
                         const extra = v.slice(1);
                         v = v.charAt(0);
@@ -3286,14 +3297,14 @@
                         }
                         const lastIdx = Math.min(j + extra.length, cells.length - 1);
                         cells[lastIdx].focus();
-                    } else if (cell.value && j < cells.length - 1) {
+                    } else if (v && j < cells.length - 1) {
                         cells[j + 1].focus();
                     }
                 });
                 cell.addEventListener('paste', (e) => {
                     e.preventDefault();
                     const t = (e.clipboardData || window.clipboardData).getData('text') || '';
-                    const chars = Array.from(t);
+                    const chars = Array.from(sanitizeQuizInputText(t).replace(/ /g, ''));
                     let cj = j;
                     for (let p = 0; p < chars.length && cj < cells.length; p++, cj++) {
                         cells[cj].value = chars[p];
@@ -3322,7 +3333,16 @@
                 inp.setAttribute('spellcheck', 'false');
                 inp.setAttribute('autocapitalize', 'off');
                 inp.setAttribute('autocorrect', 'off');
+                inp.setAttribute('lang', 'en');
                 wrap.appendChild(inp);
+                inp.addEventListener('input', () => {
+                    inp.value = sanitizeQuizInputText(inp.value);
+                });
+                inp.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const t = (e.clipboardData || window.clipboardData).getData('text') || '';
+                    inp.value = sanitizeQuizInputText(t);
+                });
                 inp.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -3341,6 +3361,13 @@
 
             const midCells = [];
             for (let i = 1; i < chars.length - 1; i++) {
+                if (chars[i] === ' ') {
+                    const gap = document.createElement('span');
+                    gap.className = 'quiz-edge-char select-none opacity-60';
+                    gap.textContent = '\u00A0';
+                    wrap.appendChild(gap);
+                    continue;
+                }
                 const inp = document.createElement('input');
                 inp.type = 'text';
                 inp.maxLength = 1;
@@ -3349,6 +3376,8 @@
                 inp.setAttribute('spellcheck', 'false');
                 inp.setAttribute('autocapitalize', 'off');
                 inp.setAttribute('autocorrect', 'off');
+                inp.setAttribute('lang', 'en');
+                inp.dataset.charIndex = String(i);
                 wrap.appendChild(inp);
                 midCells.push(inp);
             }
@@ -3377,12 +3406,39 @@
             for (let i = 0; i < chars.length; i++) {
                 if (i === 0 || i === chars.length - 1) {
                     s += chars[i];
+                } else if (chars[i] === ' ') {
+                    s += ' ';
                 } else {
-                    const cell = mids[i - 1];
+                    const cell =
+                        document.querySelector('#quizWordHost .quiz-mid-cell[data-char-index="' + i + '"]') ||
+                        mids[i - 1];
                     s += cell && cell.value ? cell.value : '';
                 }
             }
             return s;
+        }
+
+        /** 依測驗當前單字從詞表找條目（比對 clean 後的 keyword） */
+        function getQuizWordEntryForKeyword(keyword) {
+            const k = cleanKeyword(keyword);
+            if (!k) return null;
+            for (let i = 0; i < baselineWords.length; i++) {
+                const w = baselineWords[i];
+                if (cleanKeyword(w.keyword) === k) return w;
+            }
+            return null;
+        }
+
+        /** 作答回饋用：中文釋義一行（純文字） */
+        function formatQuizZhMeaningLine(entry) {
+            if (!entry) return '（詞表中查無此單字釋義）';
+            const zh = String(entry.zh_gloss || '').trim();
+            const pos = String(entry.pos || '').trim();
+            const posPart = pos && pos !== '—' ? pos : '';
+            if (zh) {
+                return posPart ? '中文意思：' + posPart + ' ' + zh : '中文意思：' + zh;
+            }
+            return posPart ? '中文意思：' + posPart + '（無中文釋義）' : '中文意思：（無中文釋義）';
         }
 
         function submitQuizAnswer() {
@@ -3401,6 +3457,7 @@
             const icon = document.getElementById('quizFeedbackIcon');
             const wrongLine = document.getElementById('quizFeedbackWrongLine');
             const ansSpan = document.getElementById('quizAnswerReveal');
+            const zhLine = document.getElementById('quizFeedbackZhLine');
             const tap = document.getElementById('quizTapNext');
             const hint = document.getElementById('quizNextHint');
 
@@ -3420,13 +3477,41 @@
                     ansSpan.textContent = quizCurrentKeyword;
                 }
             }
+            const entry = getQuizWordEntryForKeyword(quizCurrentKeyword);
+            if (!ok) {
+                quizWrongRecords.push({
+                    questionNo: quizIndex + 1,
+                    keyword: quizCurrentKeyword,
+                    userAnswer: built,
+                    zhLine: formatQuizZhMeaningLine(entry).replace(/^中文意思：/, ''),
+                });
+            }
+            if (zhLine) {
+                zhLine.textContent = formatQuizZhMeaningLine(entry);
+                zhLine.classList.remove('hidden');
+            }
+            if (tap) {
+                window.setTimeout(function () {
+                    try {
+                        tap.focus();
+                    } catch (err) {}
+                }, 0);
+            }
         }
 
         function advanceQuiz() {
             if (!isQuizOpen() || quizPhase !== 'feedback') return;
             quizIndex++;
             if (quizIndex >= quizQueue.length) {
-                alert('本輪測驗完成！');
+                if (quizWrongRecords.length) {
+                    const rows = quizWrongRecords.map((r) => {
+                        const you = String(r.userAnswer || '').trim() || '（未作答）';
+                        return `${r.questionNo}. ${r.keyword}\n你的答案：${you}\n正確答案：${r.keyword}\n中文：${r.zhLine}`;
+                    });
+                    alert(`本輪測驗完成！\n\n錯題共 ${quizWrongRecords.length} 題：\n\n${rows.join('\n\n')}`);
+                } else {
+                    alert('本輪測驗完成！\n全部答對，太強了！');
+                }
                 closeQuiz();
                 return;
             }
@@ -3447,9 +3532,14 @@
             const fb = document.getElementById('quizFeedback');
             const tap = document.getElementById('quizTapNext');
             const hint = document.getElementById('quizNextHint');
+            const zhLine = document.getElementById('quizFeedbackZhLine');
             if (fb) fb.classList.add('hidden');
             if (tap) tap.classList.add('hidden');
             if (hint) hint.classList.add('hidden');
+            if (zhLine) {
+                zhLine.textContent = '';
+                zhLine.classList.add('hidden');
+            }
 
             renderQuizWordArea(quizCurrentKeyword);
 
@@ -3501,6 +3591,7 @@
             quizQueue = queue;
             quizIndex = 0;
             quizPhase = 'input';
+            quizWrongRecords = [];
             const modePanel = document.getElementById('quizModePanel');
             const playPanel = document.getElementById('quizPlayPanel');
             const pw = document.getElementById('quizProgressWrap');
@@ -3534,6 +3625,7 @@
             quizPhase = 'idle';
             quizQueue = [];
             quizCurrentKeyword = '';
+            quizWrongRecords = [];
             showQuizModeStep();
             const host = document.getElementById('quizWordHost');
             if (host) host.innerHTML = '';
@@ -4085,6 +4177,23 @@
                 return;
             }
             if (isQuizOpen()) {
+                if (e.key === 'Enter') {
+                    const playPanel = document.getElementById('quizPlayPanel');
+                    const playing = playPanel && !playPanel.classList.contains('hidden');
+                    if (playing && quizPhase === 'input' && !e.defaultPrevented) {
+                        const inHost =
+                            e.target &&
+                            typeof e.target.closest === 'function' &&
+                            e.target.closest('#quizWordHost');
+                        if (!inHost) {
+                            submitQuizAnswer();
+                            e.preventDefault();
+                        }
+                    } else if (playing && quizPhase === 'feedback' && !e.defaultPrevented) {
+                        advanceQuiz();
+                        e.preventDefault();
+                    }
+                }
                 return;
             }
             if (!studyBoardVisible) {
